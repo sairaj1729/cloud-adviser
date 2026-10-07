@@ -1,0 +1,3 @@
+- [x] Build V1 Cloud Advisor dashboard, cost usage, unused services, low utilization, recommendations, account, and demo login screens.
+- [x] Provide realistic separated demo data, interactive controls, and responsive navigation.
+- [ ] Connect authentication and existing Flask services (blocked: backend services are not available in this project environment).
