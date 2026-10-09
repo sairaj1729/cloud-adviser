@@ -29,6 +29,8 @@ const fields: Record<CloudType, { id: string; label: string; placeholder: string
     { id: 'name', label: 'Subscription nickname', placeholder: 'Analytics', pattern: /^.{2,40}$/, hint: '2–40 characters' },
     { id: 'ref', label: 'Subscription ID', placeholder: '00000000-0000-0000-0000-000000000000', pattern: /^[0-9a-f-]{36}$/i, hint: 'GUID format' },
     { id: 'tenant', label: 'Tenant ID', placeholder: '00000000-0000-0000-0000-000000000000', pattern: /^[0-9a-f-]{36}$/i, hint: 'GUID format' },
+    { id: 'client_id', label: 'App / Client ID', placeholder: '00000000-0000-0000-0000-000000000000', pattern: /^[0-9a-f-]{36}$/i, hint: 'GUID format' },
+    { id: 'client_secret', label: 'Client Secret', placeholder: 'Enter client secret value', pattern: /^.{8,120}$/, hint: 'Secret value' },
   ],
   GCP: [
     { id: 'name', label: 'Project nickname', placeholder: 'Data platform', pattern: /^.{2,40}$/, hint: '2–40 characters' },
@@ -103,7 +105,10 @@ export function ConnectionsPanel() {
         account_identifier: values['ref']!.trim(),
         credential_type: p === 'AWS' ? 'assume_role' : p === 'Azure' ? 'client_secret' : 'service_account',
         role_arn: values['role']?.trim(),
-        azure_tenant_id: values['tenant']?.trim()
+        azure_tenant_id: values['tenant']?.trim(),
+        azure_client_id: values['client_id']?.trim(),
+        azure_client_secret: values['client_secret']?.trim(),
+        gcp_project_id: values['ref']?.trim()
       });
 
       const newConn: Conn = {

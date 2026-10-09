@@ -77,10 +77,9 @@ async def create_db_indexes():
             unique=True
         )
 
-        # resources: user_id + provider + resource_id
+        # resources: user_id + provider + resource_id (non-unique to allow snapshots over time)
         await db.resources.create_index(
-            [("user_id", 1), ("provider", 1), ("resource_id", 1)],
-            unique=True
+            [("user_id", 1), ("provider", 1), ("resource_id", 1)]
         )
 
         # rules: unique rule_id

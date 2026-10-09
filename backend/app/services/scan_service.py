@@ -43,24 +43,49 @@ class ScanService:
         # 2. Get Connector & Verify
         connector = ProviderFactory.get_connector(account)
         verified = await connector.verify_connection()
-        if not verified:
+        
+        # 3. Fetch Resources
+        try:
+            raw_resources = await connector.get_resources()
+        except Exception as e:
+            logger.error(f"Error fetching resources from connector: {e}")
+            raw_resources = []
+
+        if not verified and not raw_resources:
             await db.cloud_accounts.update_one(
                 {"_id": account["_id"]},
                 {"$set": {"status": "error", "updated_at": datetime.utcnow()}}
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cloud account verification failed. Check credentials/roles."
+                detail="Cloud account verification failed. Check credentials, role ARN, or API permissions."
             )
 
-        # 3. Fetch Resources, Metrics, and Costs
-        raw_resources = await connector.get_resources()
+        # If resources are discovered, mark as connected
+        new_status = "connected" if verified else "connected"
+        await db.cloud_accounts.update_one(
+            {"_id": account["_id"]},
+            {"$set": {"status": new_status, "last_verified_at": datetime.utcnow(), "updated_at": datetime.utcnow()}}
+        )
+
         normalized_count = 0
 
         for raw_res in raw_resources:
             res_id = raw_res.get("resource_id")
-            raw_metrics = await connector.get_metrics(res_id)
-            raw_cost = await connector.get_costs(res_id)
+            if not res_id:
+                continue
+
+            try:
+                raw_metrics = await connector.get_metrics(res_id)
+            except Exception as e:
+                logger.warning(f"Failed to fetch metrics for {res_id}: {e}")
+                raw_metrics = {}
+
+            try:
+                raw_cost = await connector.get_costs(res_id)
+            except Exception as e:
+                logger.warning(f"Failed to fetch cost for {res_id}: {e}")
+                raw_cost = {}
 
             norm_metrics = MetricsNormalizer.normalize_metrics(raw_metrics)
             norm_cost = CostNormalizer.normalize_cost(raw_cost)
@@ -91,12 +116,6 @@ class ScanService:
         await RuleRegistry.seed_rules(db)
         rule_engine = RuleEngine(db)
         scan_results = await rule_engine.evaluate_account(user_id, str(account["_id"]))
-
-        # Update last_verified_at
-        await db.cloud_accounts.update_one(
-            {"_id": account["_id"]},
-            {"$set": {"status": "connected", "last_verified_at": datetime.utcnow()}}
-        )
 
         return ScanSummarySchema(
             status="completed",

@@ -128,10 +128,17 @@ export async function apiGetDashboardSummary() {
     total_findings: number;
     open_findings: number;
     high_severity_findings: number;
+    total_monthly_cost: number;
     estimated_monthly_savings: number;
     estimated_annual_savings: number;
     savings_by_provider: { aws: number; azure: number; gcp: number };
+    cost_by_provider: { aws: number; azure: number; gcp: number };
+    top_services: Array<{ name: string; cost: number; count: number }>;
   }>('/dashboard/summary');
+}
+
+export async function apiGetDashboardAnalytics() {
+  return request<any>('/dashboard/analytics');
 }
 
 export async function apiGetResources(provider?: string) {
@@ -146,3 +153,11 @@ export async function apiGetFindings(provider?: string, severity?: string) {
   const query = params.toString() ? `?${params.toString()}` : '';
   return request<any[]>(`/findings${query}`);
 }
+
+export async function apiUpdateFindingStatus(findingId: string, status: string, notes?: string) {
+  return request<any>(`/findings/${findingId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes })
+  });
+}
+

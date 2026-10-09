@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -5,7 +6,7 @@ from typing import List, Optional
 
 from app.db.mongodb import get_database
 from app.core.dependencies import get_current_user
-from app.schemas.finding import FindingSchema
+from app.schemas.finding import FindingSchema, FindingStatusUpdateSchema
 
 router = APIRouter(prefix="/findings", tags=["Findings & Evidence"])
 
@@ -23,13 +24,13 @@ async def list_findings(
     if provider:
         query["provider"] = provider.lower()
     if severity:
-        query["severity"] = severity
+        query["severity"] = severity.lower()
     if finding_status:
-        query["status"] = finding_status
+        query["status"] = finding_status.lower()
     if rule_id:
         query["rule_id"] = rule_id
 
-    cursor = db.findings.find(query)
+    cursor = db.findings.find(query).sort("created_at", -1)
     findings = await cursor.to_list(length=500)
     out = []
     for f in findings:
@@ -60,3 +61,38 @@ async def get_finding(
 
     f["id"] = str(f["_id"])
     return FindingSchema(**f)
+
+@router.patch("/{finding_id}", response_model=FindingSchema)
+async def update_finding_status(
+    finding_id: str,
+    update_in: FindingStatusUpdateSchema,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Update finding status (e.g. approve, snooze, dismiss, resolve)."""
+    filter_q = {"user_id": current_user["id"]}
+    try:
+        filter_q["_id"] = ObjectId(finding_id)
+    except Exception:
+        filter_q["_id"] = finding_id
+
+    update_doc = {
+        "$set": {
+            "status": update_in.status.lower(),
+            "updated_at": datetime.utcnow()
+        }
+    }
+    if update_in.notes:
+        update_doc["$set"]["notes"] = update_in.notes
+
+    res = await db.findings.find_one_and_update(
+        filter_q,
+        update_doc,
+        return_document=True
+    )
+
+    if not res:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
+
+    res["id"] = str(res["_id"])
+    return FindingSchema(**res)

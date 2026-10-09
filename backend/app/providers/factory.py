@@ -14,20 +14,20 @@ class ProviderFactory:
         if provider == "aws":
             return AWSConnector(
                 account_id=account_doc.get("account_identifier"),
-                role_arn=provider_config.get("role_arn", ""),
-                external_id=provider_config.get("external_id"),
-                region=account_doc.get("region", "us-east-1")
+                role_arn=provider_config.get("role_arn") or account_doc.get("role_arn", ""),
+                external_id=provider_config.get("external_id") or account_doc.get("external_id"),
+                region=account_doc.get("region") or provider_config.get("region", "us-east-1")
             )
         elif provider == "azure":
             return AzureConnector(
-                tenant_id=provider_config.get("azure_tenant_id", ""),
-                subscription_id=account_doc.get("account_identifier"),
-                client_id=provider_config.get("azure_client_id", ""),
-                client_secret=provider_config.get("azure_client_secret", "")
+                tenant_id=provider_config.get("azure_tenant_id") or account_doc.get("azure_tenant_id", ""),
+                subscription_id=account_doc.get("account_identifier", ""),
+                client_id=provider_config.get("azure_client_id") or account_doc.get("azure_client_id", ""),
+                client_secret=provider_config.get("azure_client_secret") or account_doc.get("azure_client_secret", "")
             )
         elif provider == "gcp":
             return GCPConnector(
-                project_id=account_doc.get("account_identifier"),
+                project_id=account_doc.get("account_identifier") or provider_config.get("gcp_project_id", ""),
                 credentials_info=provider_config.get("gcp_credentials")
             )
         else:

@@ -31,7 +31,7 @@ class RuleEngine:
             "user_id": user_id,
             "cloud_account_id": cloud_account_id
         })
-        resources = await res_cursor.to_list(length=1000)
+        resources = await res_cursor.to_list(length=10000)
 
         rules_evaluated_count = 0
         findings_created_count = 0

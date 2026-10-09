@@ -19,6 +19,10 @@ async def lifespan(app: FastAPI):
     if db_manager.db is not None:
         try:
             await RuleRegistry.seed_rules(db_manager.db)
+            count = await db_manager.db.resources.count_documents({})
+            if count == 0:
+                from app.db.seed import seed_database_instance
+                await seed_database_instance(db_manager.db)
         except Exception as e:
             logger.warning(f"Startup rule seeding skipped: {e}")
     yield
@@ -77,9 +81,15 @@ app.include_router(rules.router, prefix=settings.API_V1_STR)
 app.include_router(findings.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 
+from fastapi.responses import JSONResponse, RedirectResponse
+
 @app.get("/")
 async def root():
     return {
         "message": "Cloud Advisor V1 Backend API is running.",
         "docs": f"{settings.API_V1_STR}/docs"
     }
+
+@app.get("/docs", include_in_schema=False)
+async def docs_redirect():
+    return RedirectResponse(url=f"{settings.API_V1_STR}/docs")

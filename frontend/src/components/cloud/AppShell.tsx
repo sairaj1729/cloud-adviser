@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
 import { Database, FlaskConical } from 'lucide-react';
 import { scenarios, buildDataset, type ScenarioId, type Dataset } from '@/mockData/scenarios';
-import { apiGetDashboardSummary, apiGetMe, apiLogout, getStoredToken } from '@/config/api';
+import { apiGetDashboardAnalytics, apiGetDashboardSummary, apiGetMe, apiLogout, getStoredToken } from '@/config/api';
 
 type UserProfile = { id: string; email: string; name: string } | null;
 
@@ -34,11 +34,41 @@ function SideNav({collapsed, onNavigate}: {collapsed:boolean; onNavigate?:()=>vo
  const path = useRouterState({select:s=>s.location.pathname});
  return <nav className="flex flex-col gap-1" aria-label="Main navigation">{links.map(({label,to,icon:Icon},i)=><Link key={to} to={to} onClick={onNavigate} aria-label={label} className={cn('nav-link group',path===to && 'nav-link-active', i===5 && 'mt-5 border-t border-border pt-6 rounded-none')} title={collapsed?label:undefined}><Icon size={18} strokeWidth={1.8} className="shrink-0"/>{!collapsed && <span className="truncate">{label}</span>}{path===to && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"/>}</Link>)}</nav>
 }
-function ScenarioSelect() { const {scenario,setScenario,dataset}=useCloudApp(); const cur=dataset.scenario; return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" aria-label="Data scenario" className={cn('h-9 gap-2 border-border bg-card px-3 text-xs sm:text-sm',cur.synthetic&&'border-primary/50 text-primary')}>{cur.synthetic?<FlaskConical size={14}/>:<Database size={14}/>}<span className="hidden md:inline max-w-[150px] truncate">{cur.name}</span><ChevronDown size={14} className="text-muted-foreground"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-72"><DropdownMenuLabel className="text-[11px] tracking-wider text-muted-foreground">DATA SCENARIO</DropdownMenuLabel>{scenarios.map(x=><DropdownMenuItem key={x.id} onClick={()=>setScenario(x.id)} className="flex items-start gap-2 py-2">{x.synthetic?<FlaskConical size={15} className="mt-0.5 text-primary"/>:<Database size={15} className="mt-0.5"/>}<span className="min-w-0 flex-1"><span className="flex items-center gap-2 font-medium">{x.name}{x.synthetic&&<span className="rounded border border-primary/40 px-1 text-[9px] font-bold text-primary">SYNTHETIC</span>}</span><span className="block text-xs text-muted-foreground">{x.tagline}</span></span>{scenario===x.id&&<span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary"/>}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu> }
+function DatasetBadge() {
+  return (
+    <div className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground shadow-sm">
+      <Database size={13} className="text-primary" />
+      <span className="font-medium text-foreground">Cloud Dataset</span>
+      <span className="hidden md:inline text-[11px] text-muted-foreground">(2,900 items)</span>
+    </div>
+  );
+}
+
 function ProviderSelect() { const {cloud,setCloud}=useCloudApp(); return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="h-9 gap-2 border-border bg-card px-3 text-xs sm:text-sm"><span className={cn('provider-dot',cloud.toLowerCase())}/><span>{cloud}</span><ChevronDown size={14} className="text-muted-foreground"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48">{providers.map(p=><DropdownMenuItem key={p} onClick={()=>setCloud(p)} className="gap-2"><span className={cn('provider-dot',p.toLowerCase())}/>{providerMeta[p].name}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu> }
 export function AppShell({children}: {children:ReactNode}) {
- const [cloud,setCloudState]=useState<CloudType>('AWS'); const [theme,setThemeState]=useState('Dark'); const setCloud=(value:CloudType)=>{setCloudState(value);sessionStorage.setItem('cloud-advisor-cloud',value)}; const setTheme=(value:string)=>{setThemeState(value);sessionStorage.setItem('cloud-advisor-theme',value)}; const [collapsed,setCollapsed]=useState(false); const [mobileOpen,setMobileOpen]=useState(false); const [syncing,setSyncing]=useState(false); const [lastSynced,setLastSynced]=useState('Just now'); const [notice,setNotice]=useState<string|null>(null); const [scenario,setScenarioState]=useState<ScenarioId>('baseline'); const dataset=useMemo(()=>buildDataset(scenario),[scenario]); const setScenario=(v:ScenarioId)=>{setScenarioState(v);sessionStorage.setItem('cloud-advisor-scenario',v);setNotice(`Switched to ${scenarios.find(x=>x.id===v)?.name}${v==='baseline'?'':' synthetic dataset'}.`)};
+ const [cloud,setCloudState]=useState<CloudType>('AWS'); const [theme,setThemeState]=useState('Dark'); const setCloud=(value:CloudType)=>{setCloudState(value);sessionStorage.setItem('cloud-advisor-cloud',value)}; const setTheme=(value:string)=>{setThemeState(value);sessionStorage.setItem('cloud-advisor-theme',value)}; const [collapsed,setCollapsed]=useState(false); const [mobileOpen,setMobileOpen]=useState(false); const [syncing,setSyncing]=useState(false); const [lastSynced,setLastSynced]=useState('FastAPI Live'); const [notice,setNotice]=useState<string|null>(null); const [scenario,setScenarioState]=useState<ScenarioId>('production');
+ const [dataset, setDataset] = useState<Dataset>(() => buildDataset('production'));
+ const [isLiveBackend, setIsLiveBackend] = useState(false);
+ const setScenario=(v:ScenarioId)=>{setScenarioState(v);setNotice('Active cloud dataset: 2,900 assets from data.json')};
  const [user, setUser] = useState<UserProfile>(null);
+
+ useEffect(() => {
+   let mounted = true;
+   async function loadBackendData() {
+     try {
+       const live = await apiGetDashboardAnalytics();
+       if (mounted && live && live.providerMeta) {
+         setDataset(live);
+         setIsLiveBackend(true);
+         setLastSynced('FastAPI Live');
+       }
+     } catch (e) {
+       console.warn('Backend data load fallback:', e);
+     }
+   }
+   loadBackendData();
+   return () => { mounted = false; };
+ }, []);
 
  useEffect(() => {
    async function checkAuth() {
@@ -66,20 +96,39 @@ export function AppShell({children}: {children:ReactNode}) {
  useEffect(()=>{document.documentElement.classList.toggle('light',theme==='Light')},[theme]);
  const path=useRouterState({select:s=>s.location.pathname}); const active=links.find(l=>l.to===path)?.label ?? 'Dashboard';
  useEffect(()=>{ if (!notice) return; const t=setTimeout(()=>setNotice(null),3500); return ()=>clearTimeout(t); },[notice]);
- const sync = async () => { setSyncing(true); try { const s = await apiGetDashboardSummary(); setLastSynced('Just now'); setNotice(`Backend synced: ${s.total_cloud_accounts} accounts, ${s.open_findings} findings, $${s.estimated_monthly_savings}/mo potential savings.`); } catch { setLastSynced('Just now'); setNotice('Refreshed data view.'); } finally { setSyncing(false); } };
+ const sync = async () => {
+   setSyncing(true);
+   try {
+     const [summary, live] = await Promise.all([
+       apiGetDashboardSummary(),
+       apiGetDashboardAnalytics()
+     ]);
+     if (live && live.providerMeta) {
+       setDataset(live);
+       setIsLiveBackend(true);
+     }
+     setLastSynced('FastAPI Live');
+     notify(`FastAPI synced: ${summary.total_cloud_accounts} accounts, ${live.recommendations.length} recommendations, $${summary.estimated_monthly_savings}/mo potential savings.`);
+   } catch (err: any) {
+     setLastSynced('Just now');
+     notify('Backend sync attempted: ' + (err?.message || 'offline'));
+   } finally {
+     setSyncing(false);
+   }
+ };
   const initials = user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'JD';
 
   return <AppContext.Provider value={{cloud,setCloud,sync,syncing,lastSynced,notify:setNotice,notice,theme,setTheme,scenario,setScenario,dataset,user,logout}}><TooltipProvider delayDuration={250}><div className="app-layout">
-   <aside className={cn('desktop-sidebar',collapsed?'sidebar-collapsed':'sidebar-expanded')}><div className="sidebar-top"><Brand compact={collapsed}/></div><div className="sidebar-content"><div className={cn('sidebar-label',collapsed&&'opacity-0')}>WORKSPACE</div><SideNav collapsed={collapsed}/><div className="sidebar-bottom">{!collapsed && <div className="workspace-block"><div className="workspace-icon">{user ? initials : 'CA'}</div><div className="min-w-0"><div className="text-xs font-semibold truncate">{user ? user.name : 'Acme Workspace'}</div><div className="text-[11px] text-muted-foreground truncate">{user ? user.email : 'Free workspace'}</div></div><MoreHorizontal size={16} className="ml-auto text-muted-foreground"/></div>}<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={()=>setCollapsed(!collapsed)} aria-label={collapsed?'Expand sidebar':'Collapse sidebar'} className="text-muted-foreground">{collapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</Button></TooltipTrigger><TooltipContent side="right">{collapsed?'Expand sidebar':'Collapse sidebar'}</TooltipContent></Tooltip></div></div></aside>
+    <aside className={cn('desktop-sidebar',collapsed?'sidebar-collapsed':'sidebar-expanded')}><div className="sidebar-top"><Brand compact={collapsed}/></div><div className="sidebar-content"><div className={cn('sidebar-label',collapsed&&'opacity-0')}>WORKSPACE</div><SideNav collapsed={collapsed}/><div className="sidebar-bottom">{!collapsed && <div className="workspace-block"><div className="workspace-icon">{user ? initials : 'CA'}</div><div className="min-w-0"><div className="text-xs font-semibold truncate">{user ? user.name : 'Cloud Workspace'}</div><div className="text-[11px] text-muted-foreground truncate">{user ? user.email : 'Production Workspace'}</div></div><MoreHorizontal size={16} className="ml-auto text-muted-foreground"/></div>}<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={()=>setCollapsed(!collapsed)} aria-label={collapsed?'Expand sidebar':'Collapse sidebar'} className="text-muted-foreground">{collapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</Button></TooltipTrigger><TooltipContent side="right">{collapsed?'Expand sidebar':'Collapse sidebar'}</TooltipContent></Tooltip></div></div></aside>
    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetContent side="left" className="w-72 p-5"><SheetTitle className="sr-only">Navigation</SheetTitle><Brand/><div className="mt-10"><div className="sidebar-label">WORKSPACE</div><SideNav collapsed={false} onNavigate={()=>setMobileOpen(false)}/></div></SheetContent></Sheet>
-   <div className="main-column"><header className="topbar"><div className="flex items-center gap-3 min-w-0"><Button size="icon" variant="ghost" className="md:hidden" aria-label="Open menu" onClick={()=>setMobileOpen(true)}><Menu size={20}/></Button><div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground"><span>Workspace</span><ChevronRight size={13}/><span className="text-foreground font-medium">{active}</span></div><span className="sm:hidden text-sm font-semibold truncate">{active}</span></div><div className="flex items-center gap-2"><span className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground mr-2"><span className="h-1.5 w-1.5 rounded-full bg-success"/>{user ? 'Connected to FastAPI' : 'Using Demo Data'}</span><ScenarioSelect/><ProviderSelect/><Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label="Notifications" onClick={()=>setNotice('You’re all caught up. No new notifications.')} className="relative text-muted-foreground"><Bell size={17}/><span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"/></Button></TooltipTrigger><TooltipContent>Notifications</TooltipContent></Tooltip>
+    <div className="main-column"><header className="topbar"><div className="flex items-center gap-3 min-w-0"><Button size="icon" variant="ghost" className="md:hidden" aria-label="Open menu" onClick={()=>setMobileOpen(true)}><Menu size={20}/></Button><div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground"><span>Workspace</span><ChevronRight size={13}/><span className="text-foreground font-medium">{active}</span></div><span className="sm:hidden text-sm font-semibold truncate">{active}</span></div><div className="flex items-center gap-2"><span className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground mr-2"><span className={cn("h-1.5 w-1.5 rounded-full", isLiveBackend ? "bg-success" : "bg-primary")}/>{isLiveBackend ? 'FastAPI Backend Connected' : 'Production Cache (2,900 Assets)'}</span><DatasetBadge/><ProviderSelect/><Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label="Notifications" onClick={()=>setNotice('You’re all caught up. No new notifications.')} className="relative text-muted-foreground"><Bell size={17}/><span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"/></Button></TooltipTrigger><TooltipContent>Notifications</TooltipContent></Tooltip>
    {user ? (
      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Profile menu" className="p-0"><span className="avatar-small">{initials}</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52"><DropdownMenuLabel>{user.name} <span className="block font-normal text-muted-foreground text-xs">{user.email}</span></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem asChild><Link to="/account"><UserRound size={15}/> Account settings</Link></DropdownMenuItem><DropdownMenuItem onClick={logout} className="text-destructive"><ShieldCheck size={15}/> Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
    ) : (
      <Button asChild variant="outline" size="sm"><Link to="/login">Sign in</Link></Button>
    )}
    </div></header>
-   <main className="main-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line"/> CLOUD INTELLIGENCE <span className="eyebrow-line"/></div><h1>{path==='/'||path==='/cost-usage'? `${cloud} Cost Usage`:active}</h1><p>{pageDescriptions[path]}</p></div><div className="heading-actions"><div className="sync-caption"><span className="h-1.5 w-1.5 rounded-full bg-success"/>{dataset.scenario.synthetic?`Synthetic: ${dataset.scenario.name}`: user ? 'FastAPI Connected' : 'Using Demo Data'} <span className="mx-1 text-border">·</span> Last synced {lastSynced}</div><Button variant="outline" size="icon" aria-label="Refresh data" title="Refresh data" onClick={sync} className="border-border bg-card"><RefreshCw size={15} className={syncing?'animate-spin':''}/></Button></div></div>{children}<footer className="page-footer"><span>© 2026 Cloud Advisor</span><span>Clarity across every cloud.</span></footer></main></div>
+   <main className="main-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line"/> CLOUD INTELLIGENCE <span className="eyebrow-line"/></div><h1>{path==='/'||path==='/cost-usage'? `${cloud} Cost Usage`:active}</h1><p>{pageDescriptions[path]}</p></div><div className="heading-actions"><div className="sync-caption"><span className={cn("h-1.5 w-1.5 rounded-full", isLiveBackend ? "bg-success" : "bg-primary")}/>{isLiveBackend ? "FastAPI Live Backend" : "Production Dataset (2,900 items)"} <span className="mx-1 text-border">·</span> Last synced {lastSynced}</div><Button variant="outline" size="icon" aria-label="Refresh data" title="Refresh data" onClick={sync} className="border-border bg-card"><RefreshCw size={15} className={syncing?'animate-spin':''}/></Button></div></div>{children}<footer className="page-footer"><span>© 2026 Cloud Advisor</span><span>Clarity across every cloud.</span></footer></main></div>
    {notice && <div className="app-toast" role="status"><CircleHelp size={15}/>{notice}<Button variant="ghost" size="icon" onClick={()=>setNotice(null)} aria-label="Dismiss notification" className="h-6 w-6 ml-2"><X size={13}/></Button></div>}
   </div></TooltipProvider></AppContext.Provider>
  }

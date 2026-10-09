@@ -17,10 +17,14 @@ class FindingSchema(BaseModel):
     resource_name: Optional[str] = None
     provider: str
     severity: str = "medium"
-    status: str = "open"  # open, resolved, dismissed
+    status: str = "open"  # open, approved, snoozed, rejected, resolved, dismissed
     evidence: Dict[str, Any] = Field(default_factory=dict)
     recommendation: Dict[str, Any] = Field(default_factory=dict)
     savings: FindingSavingsSchema = Field(default_factory=FindingSavingsSchema)
     source: str = "Cloud Advisor Rule Engine"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FindingStatusUpdateSchema(BaseModel):
+    status: str = Field(..., description="open, approved, snoozed, rejected, resolved, dismissed")
+    notes: Optional[str] = None

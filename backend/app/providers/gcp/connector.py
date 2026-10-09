@@ -18,7 +18,7 @@ class GCPConnector(CloudProviderConnector):
             logger.error(f"GCP Connection verification failed: {e}")
             return False
 
-    async def get_resources() -> List[Dict[str, Any]]:
+    async def get_resources(self) -> List[Dict[str, Any]]:
         return [{
             "resource_id": f"projects/{self.project_id}/zones/us-central1-a/instances/batch-processor-node",
             "resource_type": "compute_instance",
@@ -34,5 +34,5 @@ class GCPConnector(CloudProviderConnector):
     async def get_costs(self, resource_id: str) -> Dict[str, Any]:
         return {"monthly": 294.00, "currency": "USD"}
 
-    async def get_recommendations() -> List[Dict[str, Any]]:
+    async def get_recommendations(self) -> List[Dict[str, Any]]:
         return []
