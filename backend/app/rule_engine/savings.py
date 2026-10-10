@@ -13,16 +13,16 @@ class SavingsCalculator:
         """
         savings_config = rule.get("savings_calculation", {})
         calc_type = savings_config.get("type", "ESTIMATED")
-        monthly_cost = float(resource.get("cost", {}).get("monthly", 0.0))
+        monthly_cost = float(resource.get("cost", {}).get("monthly") or 0.0)
         currency = resource.get("cost", {}).get("currency", "USD")
 
         if calc_type == "ZERO_UTILIZATION":
             monthly_savings = monthly_cost
         elif calc_type == "ESTIMATED_PERCENTAGE":
-            percentage = float(savings_config.get("percentage", 50.0))
+            percentage = float(savings_config.get("percentage") or 50.0)
             monthly_savings = round(monthly_cost * (percentage / 100.0), 2)
         elif calc_type == "FIXED_AMOUNT":
-            monthly_savings = float(savings_config.get("amount", 50.0))
+            monthly_savings = float(savings_config.get("amount") or 50.0)
         else:
             # Default to 50% estimation
             monthly_savings = round(monthly_cost * 0.5, 2)
