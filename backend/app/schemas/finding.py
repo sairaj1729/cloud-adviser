@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -9,18 +9,23 @@ class FindingSavingsSchema(BaseModel):
     type: str = "ESTIMATED"  # ESTIMATED vs PROVIDER_REPORTED
 
 class FindingSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     id: Optional[str] = None
     user_id: str
     cloud_account_id: str
     rule_id: str
     resource_id: str
     resource_name: Optional[str] = None
+    resource_type: Optional[str] = None
     provider: str
     severity: str = "medium"
     status: str = "open"  # open, approved, snoozed, rejected, resolved, dismissed
     evidence: Dict[str, Any] = Field(default_factory=dict)
     recommendation: Dict[str, Any] = Field(default_factory=dict)
     savings: FindingSavingsSchema = Field(default_factory=FindingSavingsSchema)
+    cost: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
     source: str = "Cloud Advisor Rule Engine"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

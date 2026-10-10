@@ -2,13 +2,26 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from app.db.mongodb import get_database
 from app.core.dependencies import get_current_user
 from app.schemas.finding import FindingSchema, FindingStatusUpdateSchema
+from app.rule_engine.engine import RuleEngine
 
 router = APIRouter(prefix="/findings", tags=["Findings & Evidence"])
+
+@router.post("/generate", response_model=Dict[str, Any])
+async def generate_findings_from_db_rules(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Fetch active rules from MongoDB `rules` collection, evaluate all resources,
+    upsert findings in MongoDB `findings`, prune stale findings, and return summary.
+    """
+    engine = RuleEngine(db)
+    return await engine.evaluate_all_for_user(current_user["id"])
 
 @router.get("", response_model=List[FindingSchema])
 async def list_findings(
@@ -34,7 +47,7 @@ async def list_findings(
     findings = await cursor.to_list(length=500)
     out = []
     for f in findings:
-        f["id"] = str(f["_id"])
+        f["id"] = str(f.pop("_id", ""))
         out.append(FindingSchema(**f))
     return out
 
@@ -59,7 +72,7 @@ async def get_finding(
     if not f:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
 
-    f["id"] = str(f["_id"])
+    f["id"] = str(f.pop("_id", ""))
     return FindingSchema(**f)
 
 @router.patch("/{finding_id}", response_model=FindingSchema)
@@ -94,5 +107,5 @@ async def update_finding_status(
     if not res:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
 
-    res["id"] = str(res["_id"])
+    res["id"] = str(res.pop("_id", ""))
     return FindingSchema(**res)

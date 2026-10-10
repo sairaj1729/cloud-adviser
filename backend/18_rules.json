@@ -1,0 +1,695 @@
+[
+    {
+        "rule_id": "AWS-EC2-001",
+        "name": "Underutilized EC2 Instance",
+        "description": "Flags a running EC2 instance with low average CPU utilization below 15%.",
+        "provider": "aws",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 15.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review instance sizing and consider a smaller suitable instance type."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 45.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AWS-EC2-002",
+        "name": "Idle EC2 Instance",
+        "description": "Flags a running EC2 instance with near zero CPU activity below 5%.",
+        "provider": "aws",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 5.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "STOP_REVIEW",
+            "action_template": "Verify that the instance is not needed before stopping or scheduling it."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AWS-EBS-001",
+        "name": "Unattached EBS Volume",
+        "description": "Flags an unattached EBS volume or snapshot retained without an active lifecycle policy.",
+        "provider": "aws",
+        "resource_type": "block_storage",
+        "required_data": [
+            "configuration.volume_type"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "configuration.volume_type",
+                    "operator": "eq",
+                    "threshold": "snapshot"
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Confirm the volume/snapshot is no longer needed and is backed up before deleting it."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AWS-EBS-002",
+        "name": "Low-I/O EBS Volume",
+        "description": "Flags an attached EBS storage volume accumulating continuous charges.",
+        "provider": "aws",
+        "resource_type": "block_storage",
+        "required_data": [
+            "cost.monthly"
+        ],
+        "lookback_window": {
+            "value": 30,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 1.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Check workload dependencies and consider a less expensive suitable volume configuration."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 30.0
+        },
+        "severity": "low",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AWS-RDS-001",
+        "name": "Underutilized RDS Database",
+        "description": "Flags a running RDS database instance with low average CPU utilization below 20%.",
+        "provider": "aws",
+        "resource_type": "database",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 20.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review database CPU, connections, and workload requirements before resizing."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 40.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AWS-RDS-002",
+        "name": "High-Cost RDS Database",
+        "description": "Flags an RDS database generating active recurring monthly spend.",
+        "provider": "aws",
+        "resource_type": "database",
+        "required_data": [
+            "cost.monthly",
+            "cost.currency"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "months"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 0.0
+                },
+                {
+                    "field": "cost.currency",
+                    "operator": "eq",
+                    "threshold": "USD"
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "COST_REVIEW",
+            "action_template": "Review database cost and utilization to identify suitable optimization options."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 25.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-VM-001",
+        "name": "Underutilized Azure Virtual Machine",
+        "description": "Flags a running Azure virtual machine with low average CPU utilization below 15%.",
+        "provider": "azure",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 15.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review VM utilization and consider a smaller suitable VM size."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 45.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-VM-002",
+        "name": "Idle Azure Virtual Machine",
+        "description": "Flags a running Azure virtual machine with very low CPU below 5%.",
+        "provider": "azure",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 5.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "STOP_REVIEW",
+            "action_template": "Confirm the VM is not required before stopping it or configuring a shutdown schedule."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-DISK-001",
+        "name": "Unattached Azure Managed Disk",
+        "description": "Flags Azure storage volume resources accumulating storage charges.",
+        "provider": "azure",
+        "resource_type": "storage_volume",
+        "required_data": [
+            "cost.monthly"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Verify backup and retention requirements before deleting the disk or blob storage."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-DISK-002",
+        "name": "Low-I/O Azure Managed Disk",
+        "description": "Flags storage resources incurring ongoing monthly costs for optimization.",
+        "provider": "azure",
+        "resource_type": "storage_volume",
+        "required_data": [
+            "cost.monthly"
+        ],
+        "lookback_window": {
+            "value": 30,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 2.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Check whether the disk is required and consider a lower-cost suitable disk tier."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 30.0
+        },
+        "severity": "low",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-SQL-001",
+        "name": "Underutilized Azure SQL Database",
+        "description": "Flags a running Azure SQL database with low average CPU utilization below 15%.",
+        "provider": "azure",
+        "resource_type": "database",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 15.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review database workload and consider a smaller suitable service tier."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 40.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "AZURE-SQL-002",
+        "name": "High-Cost Azure SQL Database",
+        "description": "Flags an Azure SQL database whose monthly cost exceeds the configured review threshold.",
+        "provider": "azure",
+        "resource_type": "database",
+        "required_data": [
+            "cost.monthly",
+            "cost.currency"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "months"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 50.0
+                },
+                {
+                    "field": "cost.currency",
+                    "operator": "eq",
+                    "threshold": "USD"
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "COST_REVIEW",
+            "action_template": "Review database cost and utilization before changing the service tier."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 25.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-VM-001",
+        "name": "Underutilized Compute Engine VM",
+        "description": "Flags a running Compute Engine VM with low average CPU utilization below 15%.",
+        "provider": "gcp",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 15.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review VM utilization and consider a smaller suitable machine type."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 45.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-VM-002",
+        "name": "Idle Compute Engine VM",
+        "description": "Flags a running Compute Engine VM with very low CPU below 10%.",
+        "provider": "gcp",
+        "resource_type": "compute_instance",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 10.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "STOP_REVIEW",
+            "action_template": "Verify that the VM is not needed before stopping it or scheduling it to stop."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-DISK-001",
+        "name": "Unattached Persistent Disk",
+        "description": "Flags persistent storage volumes incurring ongoing storage costs.",
+        "provider": "gcp",
+        "resource_type": "storage_volume",
+        "required_data": [
+            "cost.monthly"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Confirm the disk is not needed and is backed up before deleting it."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 100.0
+        },
+        "severity": "high",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-DISK-002",
+        "name": "Low-I/O Persistent Disk",
+        "description": "Flags attached persistent storage incurring higher monthly tier charges.",
+        "provider": "gcp",
+        "resource_type": "storage_volume",
+        "required_data": [
+            "cost.monthly"
+        ],
+        "lookback_window": {
+            "value": 30,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 2.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "CLEANUP_REVIEW",
+            "action_template": "Review workload needs and consider a suitable lower-cost disk configuration."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 30.0
+        },
+        "severity": "low",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-SQL-001",
+        "name": "Underutilized Cloud SQL Instance",
+        "description": "Flags a running Cloud SQL instance with low average CPU utilization below 20%.",
+        "provider": "gcp",
+        "resource_type": "database",
+        "required_data": [
+            "metrics.cpu_average"
+        ],
+        "lookback_window": {
+            "value": 14,
+            "unit": "days"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "lt",
+                    "threshold": 20.0
+                },
+                {
+                    "field": "metrics.cpu_average",
+                    "operator": "gt",
+                    "threshold": 0.0
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "RIGHTSIZING_REVIEW",
+            "action_template": "Review database utilization and consider a smaller suitable machine configuration."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 40.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    },
+    {
+        "rule_id": "GCP-SQL-002",
+        "name": "High-Cost Cloud SQL Instance",
+        "description": "Flags a Cloud SQL instance whose monthly cost exceeds the configured review threshold.",
+        "provider": "gcp",
+        "resource_type": "database",
+        "required_data": [
+            "cost.monthly",
+            "cost.currency"
+        ],
+        "lookback_window": {
+            "value": 1,
+            "unit": "months"
+        },
+        "conditions": {
+            "logic": "AND",
+            "items": [
+                {
+                    "field": "cost.monthly",
+                    "operator": "gt",
+                    "threshold": 100.0
+                },
+                {
+                    "field": "cost.currency",
+                    "operator": "eq",
+                    "threshold": "USD"
+                }
+            ]
+        },
+        "recommendation": {
+            "type": "COST_REVIEW",
+            "action_template": "Review database cost, utilization, and workload requirements for optimization opportunities."
+        },
+        "savings_calculation": {
+            "type": "ESTIMATED_PERCENTAGE",
+            "percentage": 25.0
+        },
+        "severity": "medium",
+        "status": "active",
+        "provenance": "DERIVED"
+    }
+]

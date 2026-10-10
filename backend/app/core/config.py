@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
+    PLATFORM_AWS_ACCOUNT_ID: str = "123456789012"
+    PLATFORM_AWS_IAM_ROLE_ARN: str = "arn:aws:iam::123456789012:role/CloudAdvisorBackendRole"
 
     AZURE_TENANT_ID: str = ""
     AZURE_CLIENT_ID: str = ""

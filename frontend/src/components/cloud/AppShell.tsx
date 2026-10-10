@@ -108,15 +108,32 @@ export function AppShell({children}: {children:ReactNode}) {
        setIsLiveBackend(true);
      }
      setLastSynced('FastAPI Live');
-     notify(`FastAPI synced: ${summary.total_cloud_accounts} accounts, ${live.recommendations.length} recommendations, $${summary.estimated_monthly_savings}/mo potential savings.`);
+     setNotice(`FastAPI synced: ${summary.total_cloud_accounts} accounts, ${live.recommendations.length} recommendations, $${summary.estimated_monthly_savings}/mo potential savings.`);
    } catch (err: any) {
      setLastSynced('Just now');
-     notify('Backend sync attempted: ' + (err?.message || 'offline'));
+     setNotice('Backend sync attempted: ' + (err?.message || 'offline'));
    } finally {
      setSyncing(false);
    }
  };
   const initials = user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'JD';
+
+  const pageTitles: Record<string, string> = {
+    '/': `${cloud} Cost Usage`,
+    '/cost-usage': `${cloud} Cost Usage`,
+    '/unused-services': `${cloud} Unused Services`,
+    '/low-utilization': `${cloud} Low Utilization`,
+    '/recommendations': `${cloud} Recommendations`,
+    '/account': 'Account Settings',
+  };
+  const activeDescriptions: Record<string, string> = {
+    '/': `Your ${cloud} cloud spend and optimization opportunities, in focus.`,
+    '/cost-usage': `Explore where your ${cloud} budget goes.`,
+    '/unused-services': `Spot ${cloud} services that may no longer be needed.`,
+    '/low-utilization': `Find ${cloud} capacity that can work harder.`,
+    '/recommendations': `Clear next steps to reduce ${cloud} spend.`,
+    '/account': 'Your workspace and cloud connections.'
+  };
 
   return <AppContext.Provider value={{cloud,setCloud,sync,syncing,lastSynced,notify:setNotice,notice,theme,setTheme,scenario,setScenario,dataset,user,logout}}><TooltipProvider delayDuration={250}><div className="app-layout">
     <aside className={cn('desktop-sidebar',collapsed?'sidebar-collapsed':'sidebar-expanded')}><div className="sidebar-top"><Brand compact={collapsed}/></div><div className="sidebar-content"><div className={cn('sidebar-label',collapsed&&'opacity-0')}>WORKSPACE</div><SideNav collapsed={collapsed}/><div className="sidebar-bottom">{!collapsed && <div className="workspace-block"><div className="workspace-icon">{user ? initials : 'CA'}</div><div className="min-w-0"><div className="text-xs font-semibold truncate">{user ? user.name : 'Cloud Workspace'}</div><div className="text-[11px] text-muted-foreground truncate">{user ? user.email : 'Production Workspace'}</div></div><MoreHorizontal size={16} className="ml-auto text-muted-foreground"/></div>}<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={()=>setCollapsed(!collapsed)} aria-label={collapsed?'Expand sidebar':'Collapse sidebar'} className="text-muted-foreground">{collapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</Button></TooltipTrigger><TooltipContent side="right">{collapsed?'Expand sidebar':'Collapse sidebar'}</TooltipContent></Tooltip></div></div></aside>
@@ -128,7 +145,7 @@ export function AppShell({children}: {children:ReactNode}) {
      <Button asChild variant="outline" size="sm"><Link to="/login">Sign in</Link></Button>
    )}
    </div></header>
-   <main className="main-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line"/> CLOUD INTELLIGENCE <span className="eyebrow-line"/></div><h1>{path==='/'||path==='/cost-usage'? `${cloud} Cost Usage`:active}</h1><p>{pageDescriptions[path]}</p></div><div className="heading-actions"><div className="sync-caption"><span className={cn("h-1.5 w-1.5 rounded-full", isLiveBackend ? "bg-success" : "bg-primary")}/>{isLiveBackend ? "FastAPI Live Backend" : "Production Dataset (2,900 items)"} <span className="mx-1 text-border">·</span> Last synced {lastSynced}</div><Button variant="outline" size="icon" aria-label="Refresh data" title="Refresh data" onClick={sync} className="border-border bg-card"><RefreshCw size={15} className={syncing?'animate-spin':''}/></Button></div></div>{children}<footer className="page-footer"><span>© 2026 Cloud Advisor</span><span>Clarity across every cloud.</span></footer></main></div>
+   <main className="main-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line"/> CLOUD INTELLIGENCE <span className="eyebrow-line"/></div><h1>{pageTitles[path] ?? active}</h1><p>{activeDescriptions[path] ?? pageDescriptions[path]}</p></div><div className="heading-actions"><div className="sync-caption"><span className={cn("h-1.5 w-1.5 rounded-full", isLiveBackend ? "bg-success" : "bg-primary")}/>{isLiveBackend ? "FastAPI Live Backend" : "Production Dataset (2,900 items)"} <span className="mx-1 text-border">·</span> Last synced {lastSynced}</div><Button variant="outline" size="icon" aria-label="Refresh data" title="Refresh data" onClick={sync} className="border-border bg-card"><RefreshCw size={15} className={syncing?'animate-spin':''}/></Button></div></div>{children}<footer className="page-footer"><span>© 2026 Cloud Advisor</span><span>Clarity across every cloud.</span></footer></main></div>
    {notice && <div className="app-toast" role="status"><CircleHelp size={15}/>{notice}<Button variant="ghost" size="icon" onClick={()=>setNotice(null)} aria-label="Dismiss notification" className="h-6 w-6 ml-2"><X size={13}/></Button></div>}
   </div></TooltipProvider></AppContext.Provider>
  }

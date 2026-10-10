@@ -87,16 +87,51 @@ export async function apiCreateAccount(payload: {
   provider: string;
   display_name: string;
   account_identifier: string;
-  region?: string;
+  region?: string | undefined;
   credential_type: string;
-  role_arn?: string;
-  external_id?: string;
-  azure_tenant_id?: string;
-  azure_client_id?: string;
-  azure_client_secret?: string;
-  gcp_project_id?: string;
+  role_arn?: string | undefined;
+  external_id?: string | undefined;
+  azure_tenant_id?: string | undefined;
+  azure_client_id?: string | undefined;
+  azure_client_secret?: string | undefined;
+  gcp_project_id?: string | undefined;
 }) {
   return request<any>('/accounts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export type AwsInitiateResponse = {
+  connection_id?: string | undefined;
+  external_id: string;
+  platform_aws_account_id: string;
+  platform_role_arn: string;
+  trust_policy: Record<string, any>;
+  recommended_permissions: string[];
+};
+
+export type AwsVerifyPayload = {
+  connection_id?: string | undefined;
+  display_name: string;
+  account_id: string;
+  role_arn: string;
+  external_id: string;
+  region: string;
+};
+
+export async function apiInitiateAwsConnection() {
+  return request<AwsInitiateResponse>('/accounts/aws/initiate', { method: 'POST' });
+}
+
+export async function apiVerifyAwsConnection(payload: AwsVerifyPayload) {
+  return request<{
+    status: string;
+    verified: boolean;
+    account: any;
+    session_info?: any;
+    message: string;
+  }>('/accounts/aws/verify', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -137,8 +172,16 @@ export async function apiGetDashboardSummary() {
   }>('/dashboard/summary');
 }
 
-export async function apiGetDashboardAnalytics() {
-  return request<any>('/dashboard/analytics');
+export async function apiGetDashboardAnalytics(refresh: boolean = true) {
+  return request<any>(`/dashboard/analytics?refresh=${refresh}`);
+}
+
+export async function apiRefreshDashboardAnalytics() {
+  return request<any>('/dashboard/refresh', { method: 'POST' });
+}
+
+export async function apiGenerateFindings() {
+  return request<any>('/findings/generate', { method: 'POST' });
 }
 
 export async function apiGetResources(provider?: string) {

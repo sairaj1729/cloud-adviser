@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Clock3, Cloud, Download, ExternalLink, Eye, Filter, Info, Lightbulb, Search, Server, ShieldCheck, SlidersHorizontal, Sparkles, TrendingDown, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ConnectionsPanel } from './Connections';
 import { ApprovalDrawer, StatusPill } from './Approvals';
 import { initialAudit, type ApprovalStatus, type AuditEvent } from '@/mockData/approvals';
+import { apiUpdateFindingStatus } from '@/config/api';
 
 function Empty({text='No results match your filters.'}: {text?:string}) {return <div className="empty-state"><Search size={25}/><strong>Nothing to show</strong><span>{text}</span></div>}
 function TableControls({query,setQuery,placeholder='Search resources...',filter,setFilter,filters}: {query:string;setQuery:(s:string)=>void;placeholder?:string;filter:string;setFilter:(s:string)=>void;filters:string[]}) {return <div className="table-controls"><div className="search-field"><Search size={15}/><Input value={query} onChange={e=>setQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder}/></div><Select value={filter} onValueChange={setFilter}><SelectTrigger className="filter-select"><Filter size={14}/><SelectValue/></SelectTrigger><SelectContent>{filters.map(f=><SelectItem value={f} key={f}>{f==='All'?'All providers':f}</SelectItem>)}</SelectContent></Select></div>}
@@ -27,11 +28,263 @@ const {providerMeta,services,unused,resources,recommendations}=useDataset(); con
  {dashboard&&<div className="insight-strip"><div className="insight-icon"><Sparkles size={18}/></div><div><strong>There’s room to optimize</strong><p>{recommendations.filter(r=>r.provider===cloud).length} recommendations could help reduce your {cloud} spending this month.</p></div><Button variant="ghost" asChild className="ml-auto text-primary shrink-0"><Link to="/recommendations">Explore insights <ArrowRight size={15}/></Link></Button></div>}
  <section className="surface table-surface"><SectionHeading title="Service costs" detail={`A closer look at your ${cloud} services`} action={<span className="count-tag">{list.length} SERVICES</span>}/><div className="table-controls"><div className="search-field"><Search size={15}/><Input value={query} onChange={e=>{setQuery(e.target.value);setPage(1)}} placeholder="Search services..." aria-label="Search services"/></div><Button variant="outline" size="sm" className="export-button" onClick={()=>{const csv=['Service,Cost,Change',...shown.map(s=>`"${s.name}",${s.cost},${s.change}`)].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${cloud.toLowerCase()}-service-costs.csv`;a.click();URL.revokeObjectURL(a.href);notify('Service costs exported.')}}><Download size={14}/> Export</Button></div><div className="table-scroll"><table><thead><tr><th><Button variant="ghost" onClick={()=>setSorting('name')}>SERVICE <ChevronDown size={12}/></Button></th><th><Button variant="ghost" onClick={()=>setSorting('cost')}>COST <ChevronDown size={12}/></Button></th><th><Button variant="ghost" onClick={()=>setSorting('change')}>CHANGE <ChevronDown size={12}/></Button></th><th>TREND</th><th className="text-right">SHARE</th></tr></thead><tbody>{shown.slice((page-1)*5,page*5).map(s=><tr key={s.name}><td className="font-medium text-foreground"><span className="service-icon"><Cloud size={15}/></span>{s.name}</td><td className="font-semibold text-foreground">{money(s.cost)}</td><td><TrendChange change={s.change}/></td><td><Sparkline values={s.trend} positive={s.change>=0}/></td><td className="text-right text-muted-foreground">{(s.cost/meta.total*100).toFixed(1)}%</td></tr>)}</tbody></table>{!shown.length&&<Empty/>}</div><Pager page={page} setPage={setPage} total={shown.length}/></section></div>
 }
-export function UnusedView() {const {providerMeta,services,unused,resources,recommendations}=useDataset();const {cloud}=useCloudApp();const [query,setQuery]=useState('');const [filter,setFilter]=useState('All');const [page,setPage]=useState(1);const [selected,setSelected]=useState<Finding|null>(null); const rows=unused.filter(x=>(filter==='All'||x.provider===filter)&&x.name.toLowerCase().includes(query.toLowerCase()));const potential=unused.filter(x=>x.status==='Potentially Unused').length;
- return <div className="view-stack"><div className="summary-band"><div><span className="summary-icon warning"><CircleAlert size={21}/></span><span><strong>{potential} potentially unused services</strong><small>Activity signals suggest these services need a closer look—not automatic removal.</small></span></div><div className="summary-stat"><strong>{money(unused.reduce((a,b)=>a+b.cost,0))}</strong><small>monthly cost under review</small></div></div><div className="callout"><Info size={17}/><span>Low cost alone does not mean a service is unused. Review activity and ownership before taking action.</span></div><section className="surface table-surface"><SectionHeading title="Services to review" detail="Activity-based signals across connected clouds" action={<span className="count-tag">{rows.length} SERVICES</span>}/><TableControls query={query} setQuery={v=>{setQuery(v);setPage(1)}} placeholder="Search services..." filter={filter} setFilter={v=>{setFilter(v);setPage(1)}} filters={['All','AWS','Azure','GCP']}/><div className="table-scroll"><table><thead><tr><th>SERVICE</th><th>PROVIDER</th><th>CURRENT COST</th><th>LAST ACTIVITY</th><th>STATUS</th><th></th></tr></thead><tbody>{rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td className="font-semibold text-foreground">{money(x.cost)}<small>/mo</small></td><td>{x.lastActivity}</td><td><span className={cn('status-pill',x.status==='Potentially Unused'?'status-amber':'status-muted')}>{x.status}</span></td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}</tbody></table>{!rows.length&&<Empty/>}</div><Pager page={page} setPage={setPage} total={rows.length}/></section><FindingDrawer item={selected} onClose={()=>setSelected(null)}/></div>}
+export function UnusedView() {
+ const {unused}=useDataset();
+ const {cloud,setCloud}=useCloudApp();
+ const [query,setQuery]=useState('');
+ const [filter,setFilter]=useState<string>(cloud);
+ const [page,setPage]=useState(1);
+ const [selected,setSelected]=useState<Finding|null>(null);
+
+ useEffect(() => {
+   setFilter(cloud);
+   setPage(1);
+ }, [cloud]);
+
+ const onFilterChange = (v: string) => {
+   setFilter(v);
+   setPage(1);
+   if (v === 'AWS' || v === 'Azure' || v === 'GCP') {
+     setCloud(v as CloudType);
+   }
+ };
+
+ const cloudItems = unused.filter(x => (filter === 'All' ? true : x.provider === filter));
+ const rows = cloudItems.filter(x => x.name.toLowerCase().includes(query.toLowerCase()));
+ const potential = cloudItems.filter(x => x.status === 'Potentially Unused').length;
+ const totalCost = cloudItems.reduce((a,b) => a + b.cost, 0);
+
+ return <div className="view-stack">
+   <div className="summary-band">
+     <div>
+       <span className="summary-icon warning"><CircleAlert size={21}/></span>
+       <span>
+         <strong>{potential} potentially unused {filter === 'All' ? 'cloud' : filter} services</strong>
+         <small>Activity signals suggest these {filter === 'All' ? '' : filter + ' '}services need a closer look—not automatic removal.</small>
+       </span>
+     </div>
+     <div className="summary-stat">
+       <strong>{money(totalCost)}</strong>
+       <small>{filter === 'All' ? 'total' : filter} monthly cost under review</small>
+     </div>
+   </div>
+   <div className="callout"><Info size={17}/><span>Low cost alone does not mean a {filter === 'All' ? 'cloud' : filter} service is unused. Review activity and ownership before taking action.</span></div>
+   <section className="surface table-surface">
+     <SectionHeading title={`${filter === 'All' ? 'All' : filter} services to review`} detail={`Activity-based signals across ${filter === 'All' ? 'connected clouds' : filter}`} action={<span className="count-tag">{rows.length} SERVICES</span>}/>
+     <TableControls query={query} setQuery={v=>{setQuery(v);setPage(1)}} placeholder={`Search ${filter === 'All' ? '' : filter + ' '}services...`} filter={filter} setFilter={onFilterChange} filters={['All','AWS','Azure','GCP']}/>
+     <div className="table-scroll">
+       <table>
+         <thead>
+           <tr><th>SERVICE</th><th>PROVIDER</th><th>CURRENT COST</th><th>LAST ACTIVITY</th><th>STATUS</th><th></th></tr>
+         </thead>
+         <tbody>
+           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td className="font-semibold text-foreground">{money(x.cost)}<small>/mo</small></td><td>{x.lastActivity}</td><td><span className={cn('status-pill',x.status==='Potentially Unused'?'status-amber':'status-muted')}>{x.status}</span></td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
+         </tbody>
+       </table>
+       {!rows.length&&<Empty text={`No unused services found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
+     </div>
+     <Pager page={page} setPage={setPage} total={rows.length}/>
+   </section>
+   <FindingDrawer item={selected} onClose={()=>setSelected(null)}/>
+ </div>;
+}
 function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.service} · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3><p>{item.evidence}</p></div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
-export function UtilizationView() {const {providerMeta,services,unused,resources,recommendations}=useDataset();const [query,setQuery]=useState('');const [filter,setFilter]=useState('All');const [page,setPage]=useState(1);const [selected,setSelected]=useState<Resource|null>(null);const rows=resources.filter(x=>(filter==='All'||x.provider===filter)&&`${x.name} ${x.service}`.toLowerCase().includes(query.toLowerCase()));return <div className="view-stack"><div className="util-top"><div className="surface util-chart"><SectionHeading title="Resource utilization" detail="Average CPU and memory · last 14 days" action={<div className="legend-inline"><span><i className="dot-primary"/>CPU</span><span><i className="dot-azure"/>Memory</span></div>}/><UtilizationChart/></div><div className="surface util-insight"><span className="summary-icon green"><TrendingDown size={22}/></span><div><span className="overline">POTENTIAL SAVINGS</span><strong>{money(resources.reduce((a,b)=>a+b.savings,0))}<small>/month</small></strong><p>Across {resources.length} resources with consistently low utilization.</p></div><span className="util-insight-bottom"><ShieldCheck size={15}/> Estimates require validation before changes.</span></div></div><section className="surface table-surface"><SectionHeading title="Underutilized resources" detail="Capacity that may be larger than needed" action={<span className="count-tag">{rows.length} RESOURCES</span>}/><TableControls query={query} setQuery={v=>{setQuery(v);setPage(1)}} filter={filter} setFilter={v=>{setFilter(v);setPage(1)}} filters={['All','AWS','Azure','GCP']}/><div className="table-scroll"><table><thead><tr><th>RESOURCE</th><th>PROVIDER</th><th>CPU</th><th>MEMORY</th><th>COST</th><th>EST. SAVINGS</th><th></th></tr></thead><tbody>{rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td><span className="metric-with-bar">{x.cpu}%<i><b style={{width:`${x.cpu}%`}}/></i></span></td><td><span className="metric-with-bar">{x.memory}%<i><b style={{width:`${x.memory}%`}}/></i></span></td><td className="text-foreground">{money(x.cost)}</td><td className="text-success font-semibold">{money(x.savings)}/mo</td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}</tbody></table>{!rows.length&&<Empty/>}</div><Pager page={page} setPage={setPage} total={rows.length}/></section><Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">RESOURCE REVIEW</div><SheetTitle>{selected?.name}</SheetTitle><SheetDescription>{selected?.service} · {selected?.provider}</SheetDescription></SheetHeader>{selected&&<div className="drawer-body"><div className="drawer-metrics"><div><small>CPU UTILIZATION</small><strong>{selected.cpu}%</strong></div><div><small>MEMORY UTILIZATION</small><strong>{selected.memory}%</strong></div></div><div className="drawer-section"><h3>Estimated impact</h3><p>Current cost: {money(selected.cost)}/month. Estimated savings: {money(selected.savings)}/month.</p></div><div className="drawer-section"><h3>Suggested action</h3><p>{selected.recommendation}. Validate peak usage and performance requirements first.</p></div></div>}</SheetContent></Sheet></div>}
-export function RecommendationsView() {const {providerMeta,services,unused,resources,recommendations}=useDataset();const {notify}=useCloudApp();const [filter,setFilter]=useState('All');const [priority,setPriority]=useState('All');const [selected,setSelected]=useState<Recommendation|null>(null);const [reviewing,setReviewing]=useState<Recommendation|null>(null);const [tab,setTab]=useState<'All'|ApprovalStatus>('All');const [statuses,setStatuses]=useState<Record<string,ApprovalStatus>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-decisions')??'{}')}catch{}return {}});const [audits,setAudits]=useState<Record<string,AuditEvent[]>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-audits')??'{}')}catch{}return {}});const statusOf=(id:string)=>statuses[id]??'Pending Review';const auditOf=(r:Recommendation)=>audits[r.id]??initialAudit(r);const decide=(r:Recommendation,s:ApprovalStatus,text:string)=>{const at=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});const nextStatuses={...statuses,[r.id]:s};const nextAudits={...audits,[r.id]:[...auditOf(r),{at,actor:'Jordan Davis',text}]};setStatuses(nextStatuses);setAudits(nextAudits);try{localStorage.setItem('cloud-advisor-decisions',JSON.stringify(nextStatuses));localStorage.setItem('cloud-advisor-audits',JSON.stringify(nextAudits))}catch{}setReviewing(null);notify(`${r.title}: ${s}`)};const rows=recommendations.filter(r=>(filter==='All'||r.provider===filter)&&(priority==='All'||r.priority===priority)&&(tab==='All'||statusOf(r.id)===tab));const pending=recommendations.filter(r=>statusOf(r.id)==='Pending Review');const total=recommendations.reduce((n,r)=>n+r.savings,0);return <div className="view-stack"><div className="rec-feature"><div className="rec-feature-content"><div className="rec-feature-eyebrow"><Sparkles size={14}/> YOUR OPTIMIZATION OUTLOOK</div><strong>{money(total)}<span>/mo</span></strong><p>in potential savings across your cloud infrastructure</p><div className="rec-feature-meta"><span><Check size={14}/> {recommendations.length} actionable recommendations</span><span><ShieldCheck size={14}/> Evidence-backed insights</span></div></div><div className="rec-feature-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="orbit orbit-three"/><span className="orbit-center"><TrendingDown size={38}/></span></div></div><div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Approval status">{(['All','Pending Review','Approved','Scheduled','Snoozed','Rejected'] as const).map(t=>{const n=t==='All'?recommendations.length:recommendations.filter(r=>statusOf(r.id)===t).length;return <Button key={t} role="tab" aria-selected={tab===t} size="sm" variant={tab===t?'secondary':'ghost'} onClick={()=>setTab(t)}>{t==='All'?'All':t} <span className="text-muted-foreground">{n}</span></Button>})}<span className="ml-auto text-sm text-muted-foreground">Awaiting review: <strong className="text-success">{money(pending.reduce((a,b)=>a+b.savings,0))}/mo</strong></span></div><div className="rec-filter-row"><div><h2>All recommendations</h2><p>Prioritized opportunities to reduce spend without compromising performance.</p></div><div className="flex gap-2"><Select value={filter} onValueChange={setFilter}><SelectTrigger className="filter-select"><SelectValue/></SelectTrigger><SelectContent>{['All','AWS','Azure','GCP'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All providers':v}</SelectItem>)}</SelectContent></Select><Select value={priority} onValueChange={setPriority}><SelectTrigger className="filter-select"><SelectValue/></SelectTrigger><SelectContent>{['All','High','Medium','Low'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All priorities':`${v} priority`}</SelectItem>)}</SelectContent></Select></div></div><div className="recommendations-grid">{rows.map((r,i)=><article className="surface recommendation-card" key={r.id}><div className="rec-card-top"><div className="rec-icon"><Lightbulb size={19}/></div><span className="flex gap-1.5 items-center"><StatusPill status={statusOf(r.id)}/><span className={cn('priority-pill',`priority-${r.priority.toLowerCase()}`)}>{r.priority} priority</span></span></div><h3>{r.title}</h3><div className="rec-resource"><ProviderBadge provider={r.provider}/><span>{r.resource}</span></div><p className="rec-problem">{r.problem}</p><div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div><div className="rec-card-bottom"><div><small>POTENTIAL SAVINGS</small><strong>{money(r.savings)}<span>/mo</span></strong></div><div className="confidence"><small>CONFIDENCE</small><strong>{r.confidence}%</strong></div></div><div className="rec-actions"><Button variant="outline" onClick={()=>setSelected(r)}>View details <ArrowRight size={14}/></Button><Button variant="ghost" onClick={()=>setReviewing(r)}>Review</Button></div></article>)}{rows.length===0&&<Empty/>}</div><Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">OPTIMIZATION OPPORTUNITY</div><SheetTitle>{selected?.title}</SheetTitle><SheetDescription>{selected?.resource} · {selected?.provider}</SheetDescription></SheetHeader>{selected&&<div className="drawer-body"><div className="flex gap-2"><span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span><span className="status-pill status-muted">{selected.confidence}% confidence</span></div><div className="drawer-metrics"><div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div><div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(selected.savings)}</strong></div></div><div className="drawer-section"><h3>Why this was detected</h3><p>{selected.problem}</p></div><div className="drawer-section"><h3>Evidence</h3><p>{selected.evidence}</p></div><div className="drawer-section"><h3>Suggested action</h3><p>{selected.action}</p></div><div className="drawer-note"><Info size={15}/> Savings are estimates. Verify workload requirements before making changes.</div><Button className="w-full" onClick={()=>{setReviewing(selected);setSelected(null)}}>Review & decide <ArrowRight size={15}/></Button></div>}</SheetContent></Sheet><ApprovalDrawer item={reviewing} status={reviewing?statusOf(reviewing.id):'Pending Review'} audit={reviewing?auditOf(reviewing):[]} onClose={()=>setReviewing(null)} onDecision={(st,t)=>reviewing&&decide(reviewing,st,t)}/></div>}
+export function UtilizationView() {
+ const {providerMeta,resources}=useDataset();
+ const {cloud,setCloud}=useCloudApp();
+ const [query,setQuery]=useState('');
+ const [filter,setFilter]=useState<string>(cloud);
+ const [page,setPage]=useState(1);
+ const [selected,setSelected]=useState<Resource|null>(null);
+
+ useEffect(() => {
+   setFilter(cloud);
+   setPage(1);
+ }, [cloud]);
+
+ const onFilterChange = (v: string) => {
+   setFilter(v);
+   setPage(1);
+   if (v === 'AWS' || v === 'Azure' || v === 'GCP') {
+     setCloud(v as CloudType);
+   }
+ };
+
+ const cloudItems = resources.filter(x => (filter === 'All' ? true : x.provider === filter));
+ const rows = cloudItems.filter(x => `${x.name} ${x.service}`.toLowerCase().includes(query.toLowerCase()));
+ const totalSavings = cloudItems.reduce((a,b) => a + b.savings, 0);
+ const activeProvider = (filter === 'All' ? cloud : filter) as CloudType;
+ const activeColor = providerMeta[activeProvider]?.color ?? 'var(--primary)';
+
+ return <div className="view-stack">
+   <div className="util-top">
+     <div className="surface util-chart">
+       <SectionHeading title={`${filter === 'All' ? 'Multi-Cloud' : filter} resource utilization`} detail={`Average CPU and memory · last 14 days · ${filter === 'All' ? 'All Providers' : filter}`} action={<div className="legend-inline"><span><i className="dot-primary" style={{background: activeColor}}/>{filter === 'All' ? '' : filter + ' '}CPU</span><span><i className="dot-azure"/>Memory</span></div>}/>
+       <UtilizationChart cloud={activeProvider}/>
+     </div>
+     <div className="surface util-insight">
+       <span className="summary-icon green"><TrendingDown size={22}/></span>
+       <div>
+         <span className="overline">{filter === 'All' ? 'ALL' : filter} POTENTIAL SAVINGS</span>
+         <strong>{money(totalSavings)}<small>/month</small></strong>
+         <p>Across {cloudItems.length} {filter === 'All' ? '' : filter + ' '}resources with consistently low utilization.</p>
+       </div>
+       <span className="util-insight-bottom"><ShieldCheck size={15}/> Estimates require validation before changes.</span>
+     </div>
+   </div>
+   <section className="surface table-surface">
+     <SectionHeading title={`Underutilized ${filter === 'All' ? 'cloud' : filter} resources`} detail={`Capacity in ${filter === 'All' ? 'your cloud accounts' : filter} that may be larger than needed`} action={<span className="count-tag">{rows.length} RESOURCES</span>}/>
+     <TableControls query={query} setQuery={v=>{setQuery(v);setPage(1)}} filter={filter} setFilter={onFilterChange} filters={['All','AWS','Azure','GCP']}/>
+     <div className="table-scroll">
+       <table>
+         <thead>
+           <tr><th>RESOURCE</th><th>PROVIDER</th><th>CPU</th><th>MEMORY</th><th>COST</th><th>EST. SAVINGS</th><th></th></tr>
+         </thead>
+         <tbody>
+           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td><span className="metric-with-bar">{x.cpu}%<i><b style={{width:`${x.cpu}%`}}/></i></span></td><td><span className="metric-with-bar">{x.memory}%<i><b style={{width:`${x.memory}%`}}/></i></span></td><td className="text-foreground">{money(x.cost)}</td><td className="text-success font-semibold">{money(x.savings)}/mo</td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
+         </tbody>
+       </table>
+       {!rows.length&&<Empty text={`No underutilized resources found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
+     </div>
+     <Pager page={page} setPage={setPage} total={rows.length}/>
+   </section>
+   <Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}>
+     <SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]">
+       <SheetHeader><div className="drawer-kicker">RESOURCE REVIEW</div><SheetTitle>{selected?.name}</SheetTitle><SheetDescription>{selected?.service} · {selected?.provider}</SheetDescription></SheetHeader>
+       {selected&&<div className="drawer-body"><div className="drawer-metrics"><div><small>CPU UTILIZATION</small><strong>{selected.cpu}%</strong></div><div><small>MEMORY UTILIZATION</small><strong>{selected.memory}%</strong></div></div><div className="drawer-section"><h3>Estimated impact</h3><p>Current cost: {money(selected.cost)}/month. Estimated savings: {money(selected.savings)}/month.</p></div><div className="drawer-section"><h3>Suggested action</h3><p>{selected.recommendation}. Validate peak usage and performance requirements first.</p></div></div>}
+     </SheetContent>
+   </Sheet>
+ </div>;
+}
+export function RecommendationsView() {
+ const {providerMeta,recommendations}=useDataset();
+ const {cloud,setCloud,notify}=useCloudApp();
+ const [filter,setFilter]=useState<string>(cloud);
+ const [priority,setPriority]=useState('All');
+ const [selected,setSelected]=useState<Recommendation|null>(null);
+ const [reviewing,setReviewing]=useState<Recommendation|null>(null);
+ const [tab,setTab]=useState<'All'|ApprovalStatus>('All');
+ const [statuses,setStatuses]=useState<Record<string,ApprovalStatus>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-decisions')??'{}')}catch{}return {}});
+ const [audits,setAudits]=useState<Record<string,AuditEvent[]>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-audits')??'{}')}catch{}return {}});
+
+ useEffect(() => {
+   setFilter(cloud);
+ }, [cloud]);
+
+ const onFilterChange = (v: string) => {
+   setFilter(v);
+   if (v === 'AWS' || v === 'Azure' || v === 'GCP') {
+     setCloud(v as CloudType);
+   }
+ };
+
+ const statusOf=(id:string)=>statuses[id]??'Pending Review';
+ const auditOf=(r:Recommendation)=>audits[r.id]??initialAudit(r);
+ const decide=(r:Recommendation,s:ApprovalStatus,text:string)=>{
+   const at=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+   const nextStatuses={...statuses,[r.id]:s};
+   const nextAudits={...audits,[r.id]:[...auditOf(r),{at,actor:'Jordan Davis',text}]};
+   setStatuses(nextStatuses);
+   setAudits(nextAudits);
+   try{
+     localStorage.setItem('cloud-advisor-decisions',JSON.stringify(nextStatuses));
+     localStorage.setItem('cloud-advisor-audits',JSON.stringify(nextAudits));
+   }catch{}
+   apiUpdateFindingStatus(r.id,s.toLowerCase(),text).catch(e=>console.warn('Backend status update warning:',e));
+   setReviewing(null);
+   notify(`${r.title}: ${s}`);
+ };
+
+ const cloudItems = recommendations.filter(r => (filter === 'All' ? true : r.provider === filter));
+ const rows = cloudItems.filter(r => (priority === 'All' || r.priority === priority) && (tab === 'All' || statusOf(r.id) === tab));
+ const pending = cloudItems.filter(r => statusOf(r.id) === 'Pending Review');
+ const total = cloudItems.reduce((n,r) => n + r.savings, 0);
+
+ return <div className="view-stack">
+   <div className="rec-feature">
+     <div className="rec-feature-content">
+       <div className="rec-feature-eyebrow"><Sparkles size={14}/> {filter === 'All' ? 'MULTI-CLOUD' : filter} OPTIMIZATION OUTLOOK</div>
+       <strong>{money(total)}<span>/mo</span></strong>
+       <p>in potential savings across your {filter === 'All' ? 'cloud' : filter} infrastructure</p>
+       <div className="rec-feature-meta">
+         <span><Check size={14}/> {cloudItems.length} actionable {filter === 'All' ? '' : filter + ' '}recommendations</span>
+         <span><ShieldCheck size={14}/> Evidence-backed insights</span>
+       </div>
+     </div>
+     <div className="rec-feature-art" aria-hidden="true">
+       <div className="orbit orbit-one"/>
+       <div className="orbit orbit-two"/>
+       <div className="orbit orbit-three"/>
+       <span className="orbit-center"><TrendingDown size={38}/></span>
+     </div>
+   </div>
+
+   <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Approval status">
+     {(['All','Pending Review','Approved','Scheduled','Snoozed','Rejected'] as const).map(t => {
+       const n = t === 'All' ? cloudItems.length : cloudItems.filter(r => statusOf(r.id) === t).length;
+       return <Button key={t} role="tab" aria-selected={tab===t} size="sm" variant={tab===t?'secondary':'ghost'} onClick={()=>setTab(t)}>
+         {t === 'All' ? 'All' : t} <span className="text-muted-foreground">{n}</span>
+       </Button>;
+     })}
+     <span className="ml-auto text-sm text-muted-foreground">Awaiting review: <strong className="text-success">{money(pending.reduce((a,b)=>a+b.savings,0))}/mo</strong></span>
+   </div>
+
+   <div className="rec-filter-row">
+     <div>
+       <h2>{filter === 'All' ? 'All' : filter} recommendations</h2>
+       <p>Prioritized opportunities to reduce {filter === 'All' ? 'cloud' : filter} spend without compromising performance.</p>
+     </div>
+     <div className="flex gap-2">
+       <Select value={filter} onValueChange={onFilterChange}>
+         <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
+         <SelectContent>{['All','AWS','Azure','GCP'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All providers':v}</SelectItem>)}</SelectContent>
+       </Select>
+       <Select value={priority} onValueChange={setPriority}>
+         <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
+         <SelectContent>{['All','High','Medium','Low'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All priorities':`${v} priority`}</SelectItem>)}</SelectContent>
+       </Select>
+     </div>
+   </div>
+
+   <div className="recommendations-grid">
+     {rows.map(r => <article className="surface recommendation-card" key={r.id}>
+       <div className="rec-card-top">
+         <div className="rec-icon"><Lightbulb size={19}/></div>
+         <span className="flex gap-1.5 items-center"><StatusPill status={statusOf(r.id)}/><span className={cn('priority-pill',`priority-${r.priority.toLowerCase()}`)}>{r.priority} priority</span></span>
+       </div>
+       <h3>{r.title}</h3>
+       <div className="rec-resource"><ProviderBadge provider={r.provider}/><span>{r.resource}</span></div>
+       <p className="rec-problem">{r.problem}</p>
+       <div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div>
+       <div className="rec-card-bottom">
+         <div><small>POTENTIAL SAVINGS</small><strong>{money(r.savings)}<span>/mo</span></strong></div>
+         <div className="confidence"><small>CONFIDENCE</small><strong>{r.confidence}%</strong></div>
+       </div>
+       <div className="rec-actions">
+         <Button variant="outline" onClick={()=>setSelected(r)}>View details <ArrowRight size={14}/></Button>
+         <Button variant="ghost" onClick={()=>setReviewing(r)}>Review</Button>
+       </div>
+     </article>)}
+     {rows.length===0&&<Empty text={`No recommendations found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
+   </div>
+
+   <Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}>
+     <SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]">
+       <SheetHeader><div className="drawer-kicker">OPTIMIZATION OPPORTUNITY</div><SheetTitle>{selected?.title}</SheetTitle><SheetDescription>{selected?.resource} · {selected?.provider}</SheetDescription></SheetHeader>
+       {selected&&<div className="drawer-body">
+         <div className="flex gap-2"><span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span><span className="status-pill status-muted">{selected.confidence}% confidence</span></div>
+         <div className="drawer-metrics"><div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div><div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(selected.savings)}</strong></div></div>
+         <div className="drawer-section"><h3>Why this was detected</h3><p>{selected.problem}</p></div>
+         <div className="drawer-section"><h3>Evidence</h3><p>{selected.evidence}</p></div>
+         <div className="drawer-section"><h3>Suggested action</h3><p>{selected.action}</p></div>
+         <div className="drawer-note"><Info size={15}/> Savings are estimates. Verify workload requirements before making changes.</div>
+         <Button className="w-full" onClick={()=>{setReviewing(selected);setSelected(null)}}>Review & decide <ArrowRight size={15}/></Button>
+       </div>}
+     </SheetContent>
+   </Sheet>
+   <ApprovalDrawer item={reviewing} status={reviewing?statusOf(reviewing.id):'Pending Review'} audit={reviewing?auditOf(reviewing):[]} onClose={()=>setReviewing(null)} onDecision={(st,t)=>reviewing&&decide(reviewing,st,t)}/>
+ </div>;
+}
 export function AccountView() {
   const { cloud, setCloud, notify, theme, setTheme, user } = useCloudApp();
   const name = user ? user.name : 'Demo User';

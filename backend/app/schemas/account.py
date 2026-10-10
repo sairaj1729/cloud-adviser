@@ -1,6 +1,29 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+
+class AwsInitiateResponseSchema(BaseModel):
+    connection_id: Optional[str] = None
+    external_id: str
+    platform_aws_account_id: str
+    platform_role_arn: str
+    trust_policy: Dict[str, Any]
+    recommended_permissions: List[str]
+
+class AwsVerifyRequestSchema(BaseModel):
+    connection_id: Optional[str] = None
+    display_name: str = Field(..., description="Connection nickname, e.g. Production AWS")
+    account_id: str = Field(..., description="Customer 12-digit AWS Account ID")
+    role_arn: str = Field(..., description="Customer IAM Role ARN to assume")
+    external_id: str = Field(..., description="Generated External ID from Step 1")
+    region: Optional[str] = Field("ap-south-1", description="AWS region, e.g. ap-south-1 or us-east-1")
+
+class AwsVerifyResponseSchema(BaseModel):
+    status: str
+    verified: bool
+    account: Optional[Any] = None
+    session_info: Optional[Dict[str, Any]] = None
+    message: str
 
 class CloudAccountCreateSchema(BaseModel):
     provider: str = Field(..., description="aws, azure, or gcp")

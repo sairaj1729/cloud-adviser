@@ -6,12 +6,43 @@ from typing import List
 
 from app.db.mongodb import get_database
 from app.core.dependencies import get_current_user
-from app.schemas.account import CloudAccountCreateSchema, CloudAccountOutSchema, ScanSummarySchema
+from app.schemas.account import (
+    CloudAccountCreateSchema,
+    CloudAccountOutSchema,
+    ScanSummarySchema,
+    AwsInitiateResponseSchema,
+    AwsVerifyRequestSchema,
+    AwsVerifyResponseSchema
+)
 from app.services.account_service import AccountService
 from app.services.scan_service import ScanService
 from app.providers.factory import ProviderFactory
 
 router = APIRouter(prefix="/accounts", tags=["Cloud Accounts"])
+
+@router.post("/aws/initiate", response_model=AwsInitiateResponseSchema)
+async def initiate_aws_connection(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Step 1 & 2: User clicks Connect AWS.
+    Generates a unique External ID, provides platform IAM identity, and pre-renders trust policy.
+    """
+    return await AccountService.generate_aws_initiate_payload(db, current_user["id"])
+
+@router.post("/aws/verify", response_model=AwsVerifyResponseSchema)
+async def verify_aws_connection(
+    verify_in: AwsVerifyRequestSchema,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Step 4 & 5: User submits IAM role details and clicks Verify Connection.
+    Calls AWS STS with the stored External ID, verifies role assumption,
+    saves verified account, and triggers discovery.
+    """
+    return await AccountService.verify_and_connect_aws(db, current_user["id"], verify_in)
 
 @router.get("", response_model=List[CloudAccountOutSchema])
 async def list_accounts(

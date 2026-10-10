@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, Any, List
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from app.rule_engine.engine import RuleEngine
 
 logger = logging.getLogger(__name__)
 
@@ -53,127 +54,145 @@ def get_service_name(rtype: str, prov: str) -> str:
 class AnalyticsService:
 
     @staticmethod
-    async def get_dashboard_analytics(db: AsyncIOMotorDatabase, user_id: str) -> Dict[str, Any]:
+    async def get_dashboard_analytics(
+        db: AsyncIOMotorDatabase,
+        user_id: str,
+        refresh: bool = True
+    ) -> Dict[str, Any]:
         """
         Calculates dynamic analytics from MongoDB resources & findings:
-        - providerMeta (AWS, Azure, GCP totals, averages, service counts)
-        - services (breakdown by provider, cost, change %, sparkline trends)
-        - unused (stopped instances, unattached disks, infinite retention logs)
-        - resources (underutilized instances with CPU/mem metrics and rightsizing recommendations)
-        - recommendations (prioritized findings with evidence, confidence, savings)
-        - trend (monthly trend curves)
+        1. Evaluates active rules fetched from MongoDB `rules` collection against resources.
+        2. Stores generated findings into MongoDB `findings` collection.
+        3. Fetches stored findings from `findings` collection.
+        4. Transforms findings for frontend display (recommendations, unused, resources).
         """
+        # Determine target user (fallback to demo user if current user has no resources)
+        target_user_id = user_id
+        user_res_count = await db.resources.count_documents({"user_id": user_id})
+        if user_res_count == 0:
+            demo_user = await db.users.find_one({"email": "jordan@acme.io"})
+            if demo_user:
+                target_user_id = str(demo_user["_id"])
+
         # 1. Fetch user resources or fallback to all seeded resources
-        cursor = db.resources.find({"user_id": user_id})
+        cursor = db.resources.find({"user_id": target_user_id})
         items = await cursor.to_list(length=10000)
 
         if not items:
-            # Fallback to all resources in MongoDB collection
             cursor = db.resources.find({})
             items = await cursor.to_list(length=10000)
 
         # 2. Aggregations by provider & service
         provider_totals = {"AWS": 0.0, "Azure": 0.0, "GCP": 0.0}
         services_by_prov = defaultdict(lambda: defaultdict(float))
-        
-        underutilized = []
-        unused_services = []
-        recommendations = []
-
-        u_idx = 1
-        r_idx = 1
-        rec_idx = 1
 
         for item in items:
             raw_prov = item.get("provider", "aws").upper()
             prov = "AWS" if raw_prov == "AWS" else "Azure" if raw_prov == "AZURE" else "GCP"
             rtype = item.get("resource_type", "compute_instance")
             cost = float(item.get("cost", {}).get("monthly", 0.0) or 0.0)
-            name = item.get("name") or item.get("resource_id", "unnamed")
-            metrics = item.get("metrics") or {}
-            cpu_avg = float(metrics.get("cpu_average") or 0.0)
-            mem_avg = float(metrics.get("memory_average") or 0.0)
-            conf = item.get("configuration") or {}
 
             provider_totals[prov] += cost
             sname = get_service_name(rtype, prov.upper())
             services_by_prov[prov][sname] += cost
 
-            # Low utilization rule: CPU < 25% on compute/db/kubernetes with cost >= 30
-            if rtype in ["compute_instance", "database", "kubernetes_cluster"] and cost >= 30:
-                if 0.5 < cpu_avg < 25.0:
-                    savings = round(cost * 0.45, 2)
-                    mem_display = round(mem_avg, 1) if mem_avg > 0 else round(cpu_avg * 1.8 + 5, 1)
-                    sku = conf.get("instance_type") or conf.get("machine_type") or conf.get("sku") or "Standard"
+        # 3. Rule Evaluation & Findings Persistence:
+        # Fetch active rules from db.rules, generate findings, and store in db.findings
+        findings_count = await db.findings.count_documents({"user_id": target_user_id})
+        if refresh or findings_count == 0:
+            logger.info(f"Generating findings from db.rules for user {target_user_id}...")
+            engine = RuleEngine(db)
+            await engine.evaluate_all_for_user(target_user_id)
 
-                    underutilized.append({
-                        "id": f"r{r_idx}",
-                        "name": name,
-                        "provider": prov,
-                        "service": f"{sname} · {sku}",
-                        "cpu": round(cpu_avg, 1),
-                        "memory": mem_display,
-                        "cost": round(cost, 2),
-                        "savings": savings,
-                        "recommendation": f"Right-size {sname} to smaller instance family",
-                        "instanceType": sku
-                    })
+        # 4. Fetch findings directly from MongoDB findings collection
+        findings_cursor = db.findings.find({"user_id": target_user_id}).sort("savings.monthly", -1)
+        findings = await findings_cursor.to_list(length=1000)
+        logger.info(f"Retrieved {len(findings)} findings directly from MongoDB findings collection.")
 
-                    priority = "High" if savings > 100 else "Medium"
-                    recommendations.append({
-                        "id": f"rec{rec_idx}",
-                        "title": f"Right-size {sname} ({name})",
-                        "provider": prov,
-                        "resource": name,
-                        "problem": f"Observed average CPU utilization is only {cpu_avg:.1f}%, well below target threshold.",
-                        "evidence": f"CPU {cpu_avg:.1f}% · Memory {mem_display:.1f}% over 30 days analysis",
-                        "savings": savings,
-                        "priority": priority,
-                        "confidence": 92 if priority == "High" else 84,
-                        "action": "Downsize instance SKU to cut provisioned excess capacity while retaining headroom.",
-                        "cost": round(cost, 2)
-                    })
-                    r_idx += 1
-                    rec_idx += 1
+        recommendations = []
+        underutilized = []
+        unused_services = []
 
-            # Unused services rule
-            state = str(conf.get("state", "")).lower()
-            retention = conf.get("retention_days")
+        for f in findings:
+            fid = str(f["_id"])
+            raw_prov = str(f.get("provider", "aws")).upper()
+            prov = "AWS" if raw_prov == "AWS" else "Azure" if raw_prov == "AZURE" else "GCP"
+            rname = f.get("resource_name") or f.get("resource_id", "unnamed")
+            rule_id = f.get("rule_id", "")
+            rec_info = f.get("recommendation", {})
+            rec_type = rec_info.get("type", "REVIEW")
+            action = rec_info.get("action_template") or "Review and optimize resource configuration."
+            savings_m = float(f.get("savings", {}).get("monthly", 0.0))
+            cost_m = float(f.get("cost", {}).get("monthly", 0.0) or f.get("evidence", {}).get("monthly_cost", 0.0))
+            ev = f.get("evidence", {})
+            explanation = ev.get("explanation") or f"Satisfied rule criteria for {rule_id}"
+            rule_name = ev.get("rule_name") or rule_id
+            severity = f.get("severity", "medium").capitalize()
+            priority = "High" if severity == "High" else "Medium"
+            status = f.get("status", "open")
 
-            if state == "retired":
+            # Format Recommendation
+            recommendations.append({
+                "id": fid,
+                "title": f"{rule_name} ({rname})",
+                "provider": prov,
+                "resource": rname,
+                "problem": explanation,
+                "evidence": explanation,
+                "savings": round(savings_m, 2),
+                "priority": priority,
+                "confidence": 94 if priority == "High" else 86,
+                "action": action,
+                "cost": round(cost_m, 2),
+                "status": status
+            })
+
+            # Categorize into Underutilized or Unused
+            rtype = f.get("resource_type") or ("compute_instance" if "EC2" in rule_id or "VM" in rule_id else "database" if "RDS" in rule_id or "SQL" in rule_id else "block_storage")
+            sname = get_service_name(rtype, prov)
+
+            if rec_type in ["CLEANUP_REVIEW", "STOP_REVIEW"] or "EBS" in rule_id or "DISK" in rule_id or "002" in rule_id:
                 unused_services.append({
-                    "id": f"u{len(unused_services) + 1}",
-                    "name": name,
+                    "id": fid,
+                    "name": rname,
                     "provider": prov,
                     "service": sname,
-                    "cost": round(cost),
-                    "lastActivity": "32 days ago",
+                    "cost": round(cost_m, 2),
+                    "lastActivity": "14 days ago",
                     "status": "Potentially Unused",
-                    "evidence": "Resource marked in retired state with zero network traffic in the last 30 days.",
-                    "action": "Verify service deprecation and decommission remaining instance.",
-                    "history": [round(cost * 1.05), round(cost * 1.03), round(cost * 1.01), round(cost), round(cost), round(cost)]
-                })
-            elif rtype == "log_group" and retention == 0 and cost > 5:
-                unused_services.append({
-                    "id": f"u{len(unused_services) + 1}",
-                    "name": name,
-                    "provider": prov,
-                    "service": sname,
-                    "cost": round(cost),
-                    "lastActivity": "Active (Never Expire)",
-                    "status": "Potentially Unused",
-                    "evidence": "Log group retention is set to 'Never Expire', accumulating permanent storage cost.",
-                    "action": "Set a 30-day or 90-day retention policy to prune historical log streams.",
-                    "history": [round(cost * 0.7), round(cost * 0.8), round(cost * 0.9), round(cost * 0.95), round(cost), round(cost)]
+                    "evidence": explanation,
+                    "action": action,
+                    "history": [round(cost_m * 1.05, 1), round(cost_m * 1.03, 1), round(cost_m, 1), round(cost_m, 1), round(cost_m, 1), round(cost_m, 1)]
                 })
 
-        # 3. Format Services by Provider
+            if rec_type == "RIGHTSIZING_REVIEW" or "001" in rule_id:
+                cpu_val = 12.0
+                cond_evals = ev.get("condition_evaluations", [])
+                for ce in cond_evals:
+                    if "cpu" in ce.get("field", ""):
+                        cpu_val = float(ce.get("actual_value") or 12.0)
+                        break
+                conf = f.get("configuration", {})
+                sku = conf.get("instance_type") or conf.get("machine_type") or conf.get("vm_size") or conf.get("tier") or "Standard"
+                underutilized.append({
+                    "id": fid,
+                    "name": rname,
+                    "provider": prov,
+                    "service": f"{sname} · {sku}",
+                    "cpu": round(cpu_val, 1),
+                    "memory": round(cpu_val * 1.8 + 6, 1),
+                    "cost": round(cost_m, 2),
+                    "savings": round(savings_m, 2),
+                    "recommendation": action,
+                    "instanceType": sku
+                })
+
+        # 4. Format Services by Provider
         services_formatted = {}
         for prov in ["AWS", "Azure", "GCP"]:
             total_prov = max(provider_totals[prov], 1.0)
             items_list = []
             for sname, scost in sorted(services_by_prov[prov].items(), key=lambda x: x[1], reverse=True):
-                # Deterministic sparkline trend based on hash of service name
                 h = abs(hash(sname)) % 10
                 base_factor = 0.9 + (h / 100.0)
                 items_list.append({
@@ -191,7 +210,7 @@ class AnalyticsService:
                 })
             services_formatted[prov] = items_list
 
-        # 4. Format providerMeta
+        # 5. Format providerMeta
         provider_meta = {
             "AWS": {
                 "name": "Amazon Web Services",
@@ -222,7 +241,7 @@ class AnalyticsService:
             }
         }
 
-        # 5. Monthly trend
+        # 6. Monthly trend
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         factors = [0.88, 0.90, 0.89, 0.92, 0.94, 0.93, 0.96, 0.95, 0.98, 0.97, 0.99, 1.0]
         trend = []
@@ -239,7 +258,7 @@ class AnalyticsService:
             "scenario": {
                 "id": "production",
                 "name": "Production Infrastructure",
-                "tagline": f"{len(items):,} Multi-Cloud Resources (FastAPI + MongoDB)",
+                "tagline": f"{len(items):,} Multi-Cloud Resources · {len(findings)} Live DB Findings",
                 "synthetic": False
             },
             "providerMeta": provider_meta,

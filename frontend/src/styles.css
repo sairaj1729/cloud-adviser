@@ -22,3 +22,21 @@ html.light .desktop-sidebar{background:oklch(.963 .008 245)}html.light .avatar-s
 .conn-error{color:var(--destructive);background:color-mix(in oklab,var(--destructive) 14%,transparent)}
 .conn-disconnected{color:var(--muted-foreground);background:var(--muted)}
 .conn-error-text{display:block;color:var(--destructive);font-size:12px}
+
+/* AWS STS Connection Wizard Styles */
+.aws-wizard-dialog { max-width: 660px !important; width: 95vw !important; }
+.aws-stepper { display: flex; align-items: center; justify-content: space-between; position: relative; margin-bottom: 24px; padding: 0 4px; }
+.aws-stepper::before { content: ''; position: absolute; top: 15px; left: 24px; right: 24px; height: 2px; background: var(--border); z-index: 0; }
+.aws-step-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: default; }
+.aws-step-circle { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--card); border: 2px solid var(--border); color: var(--muted-foreground); transition: all 0.2s ease; }
+.aws-step-active .aws-step-circle { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); box-shadow: 0 0 12px color-mix(in oklab, var(--primary) 35%, transparent); }
+.aws-step-completed .aws-step-circle { border-color: var(--success); background: var(--success); color: #fff; }
+.aws-step-label { font-size: 11px; font-weight: 600; color: var(--muted-foreground); white-space: nowrap; }
+.aws-step-active .aws-step-label { color: var(--foreground); }
+.aws-step-completed .aws-step-label { color: var(--success); }
+
+.aws-copy-box { background: color-mix(in oklab, var(--background) 80%, black); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--foreground); word-break: break-all; }
+.aws-policy-pre { background: color-mix(in oklab, var(--background) 90%, black); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11.5px; line-height: 1.5; color: #a5f3fc; overflow-x: auto; max-height: 220px; white-space: pre; position: relative; }
+.aws-info-card { background: color-mix(in oklab, var(--secondary) 60%, transparent); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 12px; line-height: 1.5; }
+.aws-badge-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: color-mix(in oklab, var(--primary) 12%, transparent); color: var(--primary); border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent); }
+

@@ -9,6 +9,7 @@ import { SectionHeading, useCloudApp } from './AppShell';
 import { providerMeta, type Cloud as CloudType } from '@/mockData/cloud';
 import { cn } from '@/lib/utils';
 import { apiCreateAccount, apiListAccounts, apiVerifyAccount, apiScanAccount, apiDeleteAccount } from '@/config/api';
+import { AwsConnectionWizard } from './AwsConnectionWizard';
 
 type Status = 'Connected' | 'Disconnected' | 'Error';
 type Conn = { id: string; provider: CloudType; name: string; ref: string; status: Status; lastSync: string };
@@ -60,27 +61,51 @@ export function ConnectionsPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [remove, setRemove] = useState<Conn | null>(null);
 
-  useEffect(() => {
-    async function loadAccounts() {
-      try {
-        const liveAccounts = await apiListAccounts();
-        if (Array.isArray(liveAccounts)) {
-          const mapped: Conn[] = liveAccounts.map((a: any) => ({
-            id: a.id,
-            provider: (a.provider.toUpperCase() as CloudType),
-            name: a.display_name,
-            ref: mask(a.provider.toUpperCase() as CloudType, a.account_identifier),
-            status: a.status === 'connected' ? 'Connected' : a.status === 'error' ? 'Error' : 'Disconnected',
-            lastSync: a.last_verified_at ? 'Recently' : 'Never'
-          }));
-          setConns(mapped);
-        }
-      } catch (err) {
-        // Fallback to demo connections when backend is not connected
+  const loadAccounts = async () => {
+    try {
+      const liveAccounts = await apiListAccounts();
+      if (Array.isArray(liveAccounts)) {
+        const mapped: Conn[] = liveAccounts.map((a: any) => ({
+          id: a.id,
+          provider: (a.provider.toUpperCase() as CloudType),
+          name: a.display_name,
+          ref: mask(a.provider.toUpperCase() as CloudType, a.account_identifier),
+          status: a.status === 'connected' ? 'Connected' : a.status === 'error' ? 'Error' : 'Disconnected',
+          lastSync: a.last_verified_at ? 'Recently' : 'Never'
+        }));
+        setConns(mapped);
       }
+    } catch (err) {
+      // Fallback to demo connections when backend is not connected
     }
+  };
+
+  useEffect(() => {
     loadAccounts();
   }, []);
+
+  const handleAwsConnected = async (account: any) => {
+    const newConn: Conn = {
+      id: account.id || `aws-${Date.now()}`,
+      provider: 'AWS',
+      name: account.display_name,
+      ref: mask('AWS', account.account_identifier || '123456789012'),
+      status: account.status === 'connected' ? 'Connected' : 'Error',
+      lastSync: 'Just now'
+    };
+    setConns(c => {
+      const existing = c.findIndex(x => x.id === newConn.id || (x.provider === 'AWS' && x.ref === newConn.ref));
+      if (existing >= 0) {
+        const list = [...c];
+        list[existing] = newConn;
+        return list;
+      }
+      return [newConn, ...c];
+    });
+    try {
+      await loadAccounts();
+    } catch {}
+  };
 
   const start = (p: CloudType) => { setOpen(p); setValues({}); setErrors({}); };
 
@@ -198,7 +223,16 @@ export function ConnectionsPanel() {
 
     <div className="callout"><ShieldCheck size={17} /><span>Cloud Advisor uses read-only access wherever possible. Credentials and sensitive authentication material are handled by the backend and are never exposed in the frontend.</span></div>
 
-    <Dialog open={!!open} onOpenChange={o => !o && setOpen(null)}>
+    {/* AWS Dedicated STS AssumeRole Wizard */}
+    <AwsConnectionWizard
+      open={open === 'AWS'}
+      onClose={() => setOpen(null)}
+      onSuccess={handleAwsConnected}
+      notify={notify}
+    />
+
+    {/* Azure & GCP Dialog */}
+    <Dialog open={open === 'Azure' || open === 'GCP'} onOpenChange={o => !o && setOpen(null)}>
       <DialogContent>
         <DialogHeader><DialogTitle>{open && cardCopy[open].label}</DialogTitle><DialogDescription>Enter identifiers only. Grant Cloud Advisor a read-only role in your {open} console — no secret keys are entered here.</DialogDescription></DialogHeader>
         <div className="grid gap-4">{open && fields[open].map(f => <div key={f.id} className="grid gap-1.5">

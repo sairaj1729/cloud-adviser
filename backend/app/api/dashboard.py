@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Dict, Any
 
@@ -10,6 +10,7 @@ router = APIRouter(prefix="/dashboard", tags=["Executive Dashboard"])
 
 @router.get("/analytics", response_model=Dict[str, Any])
 async def get_dashboard_analytics(
+    refresh: bool = Query(True, description="Re-evaluate active rules from db.rules and persist findings in db.findings"),
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
@@ -22,7 +23,15 @@ async def get_dashboard_analytics(
     - recommendations (prioritized optimization opportunities with evidence)
     - trend (12-month spend curves)
     """
-    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"])
+    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=refresh)
+
+@router.post("/refresh", response_model=Dict[str, Any])
+async def refresh_dashboard_analytics(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Explicitly regenerate findings from MongoDB rules, store in DB, and return fresh dataset."""
+    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=True)
 
 @router.get("/summary", response_model=Dict[str, Any])
 async def get_dashboard_summary(
