@@ -52,7 +52,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon EC2",
       "cost": 2551,
-      "change": -1.0,
+      "change": 3.1,
       "trend": [
         5,
         6,
@@ -67,7 +67,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon RDS",
       "cost": 1188,
-      "change": 7.1,
+      "change": -3.8,
       "trend": [
         5,
         6,
@@ -82,7 +82,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon CloudFront",
       "cost": 957,
-      "change": -0.4,
+      "change": 2.7,
       "trend": [
         5,
         6,
@@ -97,7 +97,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon EBS",
       "cost": 406,
-      "change": 4.2,
+      "change": 2.9,
       "trend": [
         5,
         6,
@@ -112,7 +112,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon S3",
       "cost": 248,
-      "change": 4.3,
+      "change": -3.6,
       "trend": [
         5,
         6,
@@ -127,7 +127,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "NAT Gateway",
       "cost": 206,
-      "change": 6.8,
+      "change": -2.4,
       "trend": [
         5,
         6,
@@ -142,7 +142,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "OpenSearch Service",
       "cost": 196,
-      "change": 4.0,
+      "change": 4.4,
       "trend": [
         5,
         6,
@@ -157,7 +157,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon ElastiCache",
       "cost": 195,
-      "change": 8.7,
+      "change": 4.6,
       "trend": [
         5,
         6,
@@ -172,7 +172,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Elastic Load Balancer",
       "cost": 92,
-      "change": -2.0,
+      "change": 5.9,
       "trend": [
         5,
         6,
@@ -187,7 +187,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon DynamoDB",
       "cost": 91,
-      "change": 9.8,
+      "change": 1.6,
       "trend": [
         5,
         6,
@@ -202,7 +202,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon SageMaker",
       "cost": 60,
-      "change": 1.8,
+      "change": 7.6,
       "trend": [
         5,
         6,
@@ -217,7 +217,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "CloudWatch Logs",
       "cost": 45,
-      "change": 8.1,
+      "change": 5.6,
       "trend": [
         5,
         6,
@@ -232,7 +232,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "AWS WAF",
       "cost": 27,
-      "change": 9.3,
+      "change": -4.5,
       "trend": [
         5,
         6,
@@ -247,7 +247,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "AWS Lambda",
       "cost": 24,
-      "change": 1.0,
+      "change": 2.3,
       "trend": [
         5,
         6,
@@ -262,7 +262,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon SES",
       "cost": 21,
-      "change": 0.6,
+      "change": -0.1,
       "trend": [
         5,
         6,
@@ -277,7 +277,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon API Gateway",
       "cost": 9,
-      "change": 2.4,
+      "change": 2.0,
       "trend": [
         5,
         6,
@@ -292,7 +292,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "AWS Glue",
       "cost": 0,
-      "change": 9.3,
+      "change": 1.9,
       "trend": [
         1,
         2,
@@ -307,7 +307,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "AWS KMS",
       "cost": 0,
-      "change": 8.4,
+      "change": -2.8,
       "trend": [
         1,
         2,
@@ -322,7 +322,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "AWS Step Functions",
       "cost": 0,
-      "change": 7.4,
+      "change": -1.4,
       "trend": [
         1,
         2,
@@ -337,7 +337,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Secrets Manager",
       "cost": 0,
-      "change": -2.9,
+      "change": -0.2,
       "trend": [
         1,
         2,
@@ -352,7 +352,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Amazon ECR",
       "cost": 0,
-      "change": -2.3,
+      "change": 7.7,
       "trend": [
         1,
         2,
@@ -369,7 +369,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Virtual Machines",
       "cost": 8529,
-      "change": 5.4,
+      "change": -3.6,
       "trend": [
         5,
         6,
@@ -384,7 +384,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure SQL Database",
       "cost": 6106,
-      "change": 8.5,
+      "change": 4.4,
       "trend": [
         5,
         6,
@@ -399,7 +399,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Front Door",
       "cost": 4577,
-      "change": -0.3,
+      "change": -1.9,
       "trend": [
         5,
         6,
@@ -414,7 +414,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Kubernetes (AKS)",
       "cost": 2913,
-      "change": 8.7,
+      "change": 7.5,
       "trend": [
         5,
         6,
@@ -429,7 +429,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Blob Storage",
       "cost": 1663,
-      "change": -3.3,
+      "change": 2.3,
       "trend": [
         5,
         6,
@@ -444,7 +444,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Load Balancer",
       "cost": 1578,
-      "change": -4.9,
+      "change": 2.1,
       "trend": [
         5,
         6,
@@ -459,7 +459,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure AI Search",
       "cost": 1054,
-      "change": 4.0,
+      "change": 0.0,
       "trend": [
         5,
         6,
@@ -474,7 +474,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Cache for Redis",
       "cost": 925,
-      "change": 9.2,
+      "change": 4.5,
       "trend": [
         5,
         6,
@@ -489,7 +489,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Event Hubs",
       "cost": 752,
-      "change": 0.0,
+      "change": 4.0,
       "trend": [
         5,
         6,
@@ -504,7 +504,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Monitor Workspace",
       "cost": 674,
-      "change": 8.5,
+      "change": -0.9,
       "trend": [
         5,
         6,
@@ -519,7 +519,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure AI Services",
       "cost": 284,
-      "change": 8.7,
+      "change": 2.1,
       "trend": [
         5,
         6,
@@ -534,7 +534,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure App Service",
       "cost": 165,
-      "change": 4.0,
+      "change": -1.2,
       "trend": [
         5,
         6,
@@ -549,7 +549,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Communication",
       "cost": 151,
-      "change": -2.8,
+      "change": 4.5,
       "trend": [
         5,
         6,
@@ -564,7 +564,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Virtual Network (VNet)",
       "cost": 11,
-      "change": 9.3,
+      "change": -2.8,
       "trend": [
         5,
         6,
@@ -579,7 +579,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Public IP Address",
       "cost": 7,
-      "change": 8.4,
+      "change": 8.3,
       "trend": [
         5,
         6,
@@ -594,7 +594,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Azure Key Vault",
       "cost": 4,
-      "change": 9.5,
+      "change": 5.9,
       "trend": [
         5,
         6,
@@ -611,7 +611,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Compute Engine",
       "cost": 35336,
-      "change": 3.4,
+      "change": 1.8,
       "trend": [
         5,
         6,
@@ -626,7 +626,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Google Kubernetes Engine (GKE)",
       "cost": 27967,
-      "change": 0.3,
+      "change": 7.5,
       "trend": [
         5,
         6,
@@ -641,7 +641,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud SQL",
       "cost": 13981,
-      "change": 0.7,
+      "change": -2.2,
       "trend": [
         5,
         6,
@@ -656,7 +656,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud CDN",
       "cost": 13470,
-      "change": 6.3,
+      "change": -2.9,
       "trend": [
         5,
         6,
@@ -671,7 +671,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Storage",
       "cost": 7472,
-      "change": -4.9,
+      "change": 8.3,
       "trend": [
         5,
         6,
@@ -686,7 +686,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Network Egress",
       "cost": 4854,
-      "change": 7.6,
+      "change": 8.3,
       "trend": [
         5,
         6,
@@ -701,7 +701,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Load Balancing",
       "cost": 3661,
-      "change": 4.4,
+      "change": -2.4,
       "trend": [
         5,
         6,
@@ -716,7 +716,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Memorystore Redis",
       "cost": 2669,
-      "change": 5.9,
+      "change": 0.4,
       "trend": [
         5,
         6,
@@ -731,7 +731,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "BigQuery",
       "cost": 2555,
-      "change": 9.6,
+      "change": -3.1,
       "trend": [
         5,
         6,
@@ -746,7 +746,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Vertex AI Platform",
       "cost": 1191,
-      "change": 1.0,
+      "change": 1.8,
       "trend": [
         5,
         6,
@@ -761,7 +761,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Logging",
       "cost": 965,
-      "change": 5.6,
+      "change": 7.3,
       "trend": [
         5,
         6,
@@ -776,7 +776,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Run",
       "cost": 675,
-      "change": -4.8,
+      "change": 3.6,
       "trend": [
         5,
         6,
@@ -791,7 +791,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Functions",
       "cost": 617,
-      "change": -5.0,
+      "change": 9.5,
       "trend": [
         5,
         6,
@@ -806,7 +806,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Armor Policy",
       "cost": 262,
-      "change": 9.2,
+      "change": 8.2,
       "trend": [
         5,
         6,
@@ -821,7 +821,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Bigtable",
       "cost": 253,
-      "change": 0.5,
+      "change": 8.2,
       "trend": [
         5,
         6,
@@ -836,7 +836,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "Cloud Pub/Sub",
       "cost": 103,
-      "change": 4.6,
+      "change": -0.2,
       "trend": [
         5,
         6,
@@ -851,7 +851,7 @@ export const services: Record<Cloud, Service[]> = {
     {
       "name": "App Engine",
       "cost": 37,
-      "change": 8.0,
+      "change": 4.8,
       "trend": [
         5,
         6,

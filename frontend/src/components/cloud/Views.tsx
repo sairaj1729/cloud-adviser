@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Clock3, Cloud, Download, ExternalLink, Eye, Filter, Info, Lightbulb, Search, Server, ShieldCheck, SlidersHorizontal, Sparkles, TrendingDown, Wallet } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Clock3, Cloud, Download, ExternalLink, Eye, Filter, Info, Lightbulb, RefreshCw, Search, Server, ShieldCheck, SlidersHorizontal, Sparkles, TrendingDown, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -19,18 +19,374 @@ function Empty({text='No results match your filters.'}: {text?:string}) {return 
 function TableControls({query,setQuery,placeholder='Search resources...',filter,setFilter,filters}: {query:string;setQuery:(s:string)=>void;placeholder?:string;filter:string;setFilter:(s:string)=>void;filters:string[]}) {return <div className="table-controls"><div className="search-field"><Search size={15}/><Input value={query} onChange={e=>setQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder}/></div><Select value={filter} onValueChange={setFilter}><SelectTrigger className="filter-select"><Filter size={14}/><SelectValue/></SelectTrigger><SelectContent>{filters.map(f=><SelectItem value={f} key={f}>{f==='All'?'All providers':f}</SelectItem>)}</SelectContent></Select></div>}
 function Pager({page,setPage,total,pageSize=5}: {page:number;setPage:(n:number)=>void;total:number;pageSize?:number}) { const pages=Math.max(1,Math.ceil(total/pageSize));return <div className="pager"><span>Showing {total===0?0:(page-1)*pageSize+1}–{Math.min(page*pageSize,total)} of {total}</span><div className="flex gap-1"><Button variant="outline" size="icon" aria-label="Previous page" disabled={page<=1} onClick={()=>setPage(page-1)}><ChevronLeft size={15}/></Button><Button variant="outline" size="icon" aria-label="Next page" disabled={page>=pages} onClick={()=>setPage(page+1)}><ChevronRight size={15}/></Button></div></div> }
 function TrendChange({change}: {change:number}) {return <span className={cn('change-pill',change<0?'change-good':'change-bad')}>{change<0?<ArrowDownRight size={13}/>:<ArrowUpRight size={13}/>} {Math.abs(change)}%</span>}
+
+export function CostViewSkeleton({ dashboard, cloud }: { dashboard?: boolean; cloud: CloudType }) {
+  return (
+    <div className="view-stack animate-fadeIn">
+      <div className="callout border-primary/20 bg-primary/5 py-2 px-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 text-xs text-foreground">
+          <RefreshCw size={14} className="animate-spin text-primary shrink-0" />
+          <span><strong>Fetching {cloud} cloud analytics...</strong> Calculating spend metrics, resource utilization, and optimization opportunities.</span>
+        </div>
+        <span className="loading-pulse-badge hidden sm:inline-flex">Live Telemetry</span>
+      </div>
+
+      <div className="toolbar-row">
+        <div className="period-tabs flex gap-1 p-1 bg-card border border-border rounded-md">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-7 w-24" />
+        </div>
+        <Skeleton className="h-4 w-48 hidden sm:block" />
+      </div>
+
+      <div className="kpi-grid">
+        <div className="surface kpi-card flex flex-col justify-between">
+          <div className="kpi-top flex justify-between items-center">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+          <div className="my-3"><Skeleton className="h-9 w-36" /></div>
+          <div className="kpi-foot flex items-center gap-2"><Skeleton className="h-4 w-16 rounded" /><Skeleton className="h-3 w-24" /></div>
+        </div>
+
+        <div className="surface kpi-card flex flex-col justify-between">
+          <div className="kpi-top flex justify-between items-center">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+          <div className="my-3"><Skeleton className="h-9 w-36" /></div>
+          <div className="kpi-foot flex items-center gap-2"><Skeleton className="h-3 w-3" /><Skeleton className="h-3 w-32" /></div>
+        </div>
+
+        <div className="surface kpi-card flex flex-col justify-between">
+          <div className="kpi-top flex justify-between items-center">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+          <div className="my-3"><Skeleton className="h-9 w-20" /></div>
+          <div className="kpi-foot flex items-center gap-2"><Skeleton className="h-3 w-3" /><Skeleton className="h-3 w-28" /></div>
+        </div>
+      </div>
+
+      <div className="chart-grid">
+        <section className="surface chart-surface">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <Skeleton className="h-5 w-28 mb-1.5" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Skeleton className="h-4 w-16 rounded-full" />
+          </div>
+          <div className="h-[265px] sm:h-[300px] w-full flex flex-col justify-end gap-3 pb-2 pt-6">
+            <div className="w-full flex-1 flex items-end justify-between gap-2 px-4">
+              {[40, 55, 45, 60, 75, 65, 80, 70, 85, 90, 88, 95].map((h, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                  <div className="w-full rounded-t bg-primary/10 animate-pulse" style={{ height: `${h}%` }} />
+                  <Skeleton className="h-2.5 w-6" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="surface breakdown-surface">
+          <div className="mb-4">
+            <Skeleton className="h-5 w-32 mb-1.5" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+          <div className="breakdown-total my-4">
+            <Skeleton className="h-3 w-20 mb-2" />
+            <Skeleton className="h-5 w-36 mb-1" />
+            <Skeleton className="h-7 w-28" />
+          </div>
+          <div className="flex flex-col gap-3 my-4">
+            {[80, 55, 35, 20].map((w, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                <div className="w-full h-2 rounded bg-secondary overflow-hidden">
+                  <div className="h-full bg-primary/20 animate-pulse" style={{ width: `${w}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {dashboard && (
+        <div className="insight-strip flex items-center justify-between p-4 surface rounded-lg">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <div>
+              <Skeleton className="h-4 w-36 mb-1.5" />
+              <Skeleton className="h-3 w-64" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-28 rounded-md" />
+        </div>
+      )}
+
+      <section className="surface table-surface">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div>
+            <Skeleton className="h-5 w-32 mb-1" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded" />
+        </div>
+        <div className="table-controls p-4 flex justify-between">
+          <Skeleton className="h-9 w-60 rounded-md" />
+          <Skeleton className="h-9 w-24 rounded-md" />
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <div>
+                  <Skeleton className="h-4 w-36 mb-1" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function UnusedViewSkeleton({ cloud }: { cloud: CloudType }) {
+  return (
+    <div className="view-stack animate-fadeIn">
+      <div className="callout border-primary/20 bg-primary/5 py-2.5 px-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 text-xs text-foreground">
+          <RefreshCw size={14} className="animate-spin text-primary shrink-0" />
+          <span><strong>Scanning {cloud} services for inactivity signals...</strong> Analyzing CloudWatch / Azure Monitor / Cloud Logging telemetry.</span>
+        </div>
+        <span className="loading-pulse-badge hidden sm:inline-flex">Evaluating Rules</span>
+      </div>
+
+      <div className="summary-band flex items-center justify-between p-6 surface rounded-lg">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-12 w-12 rounded-lg" />
+          <div>
+            <Skeleton className="h-5 w-64 mb-2" />
+            <Skeleton className="h-3 w-96 max-w-full" />
+          </div>
+        </div>
+        <div className="text-right">
+          <Skeleton className="h-7 w-32 ml-auto mb-1" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+      </div>
+
+      <section className="surface table-surface">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div>
+            <Skeleton className="h-5 w-48 mb-1" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded" />
+        </div>
+        <div className="table-controls p-4 flex justify-between">
+          <Skeleton className="h-9 w-60 rounded-md" />
+          <Skeleton className="h-9 w-32 rounded-md" />
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-border/50">
+              <div>
+                <Skeleton className="h-4 w-40 mb-1" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-28 rounded-full" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function UtilizationViewSkeleton({ cloud }: { cloud: CloudType }) {
+  return (
+    <div className="view-stack animate-fadeIn">
+      <div className="callout border-primary/20 bg-primary/5 py-2.5 px-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 text-xs text-foreground">
+          <RefreshCw size={14} className="animate-spin text-primary shrink-0" />
+          <span><strong>Evaluating resource rightsizing opportunities for {cloud}...</strong> Inspecting CPU & memory thresholds across instances.</span>
+        </div>
+        <span className="loading-pulse-badge hidden sm:inline-flex">Telemetry Analysis</span>
+      </div>
+
+      <div className="util-top">
+        <div className="surface util-chart p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <Skeleton className="h-5 w-48 mb-1" />
+              <Skeleton className="h-3 w-60" />
+            </div>
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="h-[210px] w-full flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <RefreshCw size={24} className="animate-spin text-primary" />
+              <span className="text-xs">Computing 14-day utilization curves...</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="surface util-insight p-5 flex flex-col justify-between">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <div className="my-3">
+            <Skeleton className="h-3 w-36 mb-2" />
+            <Skeleton className="h-8 w-40 mb-2" />
+            <Skeleton className="h-3 w-52" />
+          </div>
+          <Skeleton className="h-3 w-44" />
+        </div>
+      </div>
+
+      <section className="surface table-surface">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div>
+            <Skeleton className="h-5 w-52 mb-1" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded" />
+        </div>
+        <div className="table-controls p-4 flex justify-between">
+          <Skeleton className="h-9 w-60 rounded-md" />
+          <Skeleton className="h-9 w-32 rounded-md" />
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-border/50">
+              <div>
+                <Skeleton className="h-4 w-44 mb-1" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function RecommendationsViewSkeleton({ cloud }: { cloud: CloudType }) {
+  return (
+    <div className="view-stack animate-fadeIn">
+      <div className="rec-feature relative overflow-hidden flex items-center justify-between p-8">
+        <div className="rec-feature-content z-10">
+          <div className="flex items-center gap-2 mb-3">
+            <RefreshCw size={14} className="animate-spin text-primary" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-12 w-56 mb-3" />
+          <Skeleton className="h-4 w-72 mb-5" />
+          <div className="flex gap-4">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+        </div>
+        <div className="rec-feature-art" aria-hidden="true">
+          <div className="orbit orbit-one animate-spin" style={{ animationDuration: '20s' }} />
+          <div className="orbit orbit-two animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
+          <span className="orbit-center"><TrendingDown size={38} className="opacity-40" /></span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {[20, 28, 24, 24, 24, 24].map((w, i) => (
+          <Skeleton key={i} className="h-8 rounded-md" style={{ width: `${w * 3.5}px` }} />
+        ))}
+        <Skeleton className="h-4 w-40 ml-auto" />
+      </div>
+
+      <div className="rec-filter-row flex justify-between items-end">
+        <div>
+          <Skeleton className="h-5 w-44 mb-1.5" />
+          <Skeleton className="h-3 w-80" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-28 rounded-md" />
+          <Skeleton className="h-8 w-28 rounded-md" />
+        </div>
+      </div>
+
+      <div className="recommendations-grid">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="surface recommendation-card flex flex-col justify-between p-5 min-h-[328px]">
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-5 w-full mb-1.5" />
+              <Skeleton className="h-5 w-3/4 mb-3" />
+              <Skeleton className="h-3 w-40 mb-3" />
+              <Skeleton className="h-3 w-full mb-1" />
+              <Skeleton className="h-3 w-5/6 mb-3" />
+              <div className="p-3 bg-secondary/50 rounded-md border border-border/50 my-2">
+                <Skeleton className="h-2.5 w-20 mb-1" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            </div>
+            <div className="pt-3 border-t border-border mt-3">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <Skeleton className="h-2.5 w-24 mb-1" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+                <div className="text-right">
+                  <Skeleton className="h-2.5 w-16 mb-1" />
+                  <Skeleton className="h-4 w-10 ml-auto" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-8 flex-1 rounded-md" />
+                <Skeleton className="h-8 w-16 rounded-md" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CostView({dashboard=false}: {dashboard?:boolean}) {
-const {providerMeta,services,unused,resources,recommendations}=useDataset(); const {cloud,notify,syncing}=useCloudApp(); const [period,setPeriod]=useState<Period>('Monthly'); const [from,setFrom]=useState('2026-01-01'); const [to,setTo]=useState('2026-12-31'); const [sort,setSort]=useState<'cost'|'name'|'change'>('cost'); const [ascending,setAscending]=useState(false); const [page,setPage]=useState(1); const [query,setQuery]=useState(''); const meta=providerMeta[cloud]; const list=services[cloud]; const shown=useMemo(()=>list.filter(s=>s.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>{const v=sort==='name'?a.name.localeCompare(b.name):a[sort]-b[sort];return ascending?v:-v}),[list,query,sort,ascending]);
+const {providerMeta,services,unused,resources,recommendations}=useDataset(); const {cloud,notify,isFetching}=useCloudApp(); const [period,setPeriod]=useState<Period>('Monthly'); const [from,setFrom]=useState('2026-01-01'); const [to,setTo]=useState('2026-12-31'); const [sort,setSort]=useState<'cost'|'name'|'change'>('cost'); const [ascending,setAscending]=useState(false); const [page,setPage]=useState(1); const [query,setQuery]=useState(''); const meta=providerMeta?.[cloud] ?? { total: 0, average: 0, serviceCount: 0, change: 0, name: cloud, color: 'var(--primary)' }; const list=services?.[cloud] ?? []; const shown=useMemo(()=>list.filter(s=>s.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>{const v=sort==='name'?a.name.localeCompare(b.name):a[sort]-b[sort];return ascending?v:-v}),[list,query,sort,ascending]);
  const setSorting=(key:'cost'|'name'|'change')=>{setAscending(sort===key?!ascending:false);setSort(key)};
+ if (isFetching) return <CostViewSkeleton dashboard={dashboard} cloud={cloud}/>;
  return <div className="view-stack"><div className="toolbar-row"><div className="period-tabs" role="group" aria-label="Cost period">{(['Daily','Monthly','Custom'] as Period[]).map(p=><Button key={p} variant="ghost" onClick={()=>setPeriod(p)} className={cn('period-button',period===p&&'period-active')}>{p==='Custom'&&<CalendarDays size={13}/>}{p==='Custom'?'Custom range':p}</Button>)}</div><span className="text-xs text-muted-foreground hidden sm:block">{period==='Daily'?'Daily view · Last 30 days':period==='Monthly'?'January – December 2026':'Selected date range'}</span></div>{period==='Custom'&&<div className="date-range"><label>From <Input type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)}/></label><label>To <Input type="date" value={to} min={from} onChange={e=>setTo(e.target.value)}/></label></div>}
- <div className="kpi-grid"><div className="surface kpi-card"><div className="kpi-top"><span>Total Cost</span><span className="kpi-icon"><Wallet size={17}/></span></div><div className="kpi-value">{syncing?<Skeleton className="h-9 w-32"/>:money(meta.total)}</div><div className="kpi-foot"><TrendChange change={meta.change}/><span>vs. previous period</span></div></div><div className="surface kpi-card"><div className="kpi-top"><span>Average Monthly Cost</span><span className="kpi-icon"><CalendarDays size={17}/></span></div><div className="kpi-value">{syncing?<Skeleton className="h-9 w-32"/>:money(meta.average)}</div><div className="kpi-foot"><span className="tiny-spark"><span className="h-1 w-1 rounded-full bg-primary"/> Based on last 12 months</span></div></div><div className="surface kpi-card"><div className="kpi-top"><span>Active Services</span><span className="kpi-icon"><Server size={17}/></span></div><div className="kpi-value">{syncing?<Skeleton className="h-9 w-20"/>:meta.serviceCount}</div><div className="kpi-foot"><span className="tiny-spark"><span className="h-1 w-1 rounded-full bg-success"/> Across {meta.name}</span></div></div></div>
+ <div className="kpi-grid"><div className="surface kpi-card"><div className="kpi-top"><span>Total Cost</span><span className="kpi-icon"><Wallet size={17}/></span></div><div className="kpi-value">{money(meta.total)}</div><div className="kpi-foot"><TrendChange change={meta.change}/><span>vs. previous period</span></div></div><div className="surface kpi-card"><div className="kpi-top"><span>Average Monthly Cost</span><span className="kpi-icon"><CalendarDays size={17}/></span></div><div className="kpi-value">{money(meta.average)}</div><div className="kpi-foot"><span className="tiny-spark"><span className="h-1 w-1 rounded-full bg-primary"/> Based on last 12 months</span></div></div><div className="surface kpi-card"><div className="kpi-top"><span>Active Services</span><span className="kpi-icon"><Server size={17}/></span></div><div className="kpi-value">{meta.serviceCount}</div><div className="kpi-foot"><span className="tiny-spark"><span className="h-1 w-1 rounded-full bg-success"/> Across {meta.name}</span></div></div></div>
  <div className="chart-grid"><section className="surface chart-surface"><SectionHeading title="Cost trend" detail={`${period==='Daily'?'Daily':'Monthly'} spending over time`} action={<span className="chart-legend"><span style={{background:meta.color}}/>{cloud}</span>}/><TrendChart cloud={cloud} period={period} from={from} to={to}/></section><section className="surface breakdown-surface"><SectionHeading title="Cost breakdown" detail="Spend by service"/><div className="breakdown-total"><span className="breakdown-label">TOP SERVICE</span><strong>{list[0]?.name}</strong><span>{money(list[0]?.cost ?? 0)} <small>this period</small></span></div><DistributionChart services={list} cloud={cloud}/><div className="breakdown-list">{list.slice(0,3).map((s,i)=><div key={s.name}><span><i className={cn('breakdown-dot',i===0?'dot-primary':i===1?'dot-azure':'dot-gcp')}/>{s.name}</span><strong>{Math.round(s.cost/meta.total*100)}%</strong></div>)}</div></section></div>
  {dashboard&&<div className="insight-strip"><div className="insight-icon"><Sparkles size={18}/></div><div><strong>There’s room to optimize</strong><p>{recommendations.filter(r=>r.provider===cloud).length} recommendations could help reduce your {cloud} spending this month.</p></div><Button variant="ghost" asChild className="ml-auto text-primary shrink-0"><Link to="/recommendations">Explore insights <ArrowRight size={15}/></Link></Button></div>}
  <section className="surface table-surface"><SectionHeading title="Service costs" detail={`A closer look at your ${cloud} services`} action={<span className="count-tag">{list.length} SERVICES</span>}/><div className="table-controls"><div className="search-field"><Search size={15}/><Input value={query} onChange={e=>{setQuery(e.target.value);setPage(1)}} placeholder="Search services..." aria-label="Search services"/></div><Button variant="outline" size="sm" className="export-button" onClick={()=>{const csv=['Service,Cost,Change',...shown.map(s=>`"${s.name}",${s.cost},${s.change}`)].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${cloud.toLowerCase()}-service-costs.csv`;a.click();URL.revokeObjectURL(a.href);notify('Service costs exported.')}}><Download size={14}/> Export</Button></div><div className="table-scroll"><table><thead><tr><th><Button variant="ghost" onClick={()=>setSorting('name')}>SERVICE <ChevronDown size={12}/></Button></th><th><Button variant="ghost" onClick={()=>setSorting('cost')}>COST <ChevronDown size={12}/></Button></th><th><Button variant="ghost" onClick={()=>setSorting('change')}>CHANGE <ChevronDown size={12}/></Button></th><th>TREND</th><th className="text-right">SHARE</th></tr></thead><tbody>{shown.slice((page-1)*5,page*5).map(s=><tr key={s.name}><td className="font-medium text-foreground"><span className="service-icon"><Cloud size={15}/></span>{s.name}</td><td className="font-semibold text-foreground">{money(s.cost)}</td><td><TrendChange change={s.change}/></td><td><Sparkline values={s.trend} positive={s.change>=0}/></td><td className="text-right text-muted-foreground">{(s.cost/meta.total*100).toFixed(1)}%</td></tr>)}</tbody></table>{!shown.length&&<Empty/>}</div><Pager page={page} setPage={setPage} total={shown.length}/></section></div>
 }
 export function UnusedView() {
  const {unused}=useDataset();
- const {cloud,setCloud}=useCloudApp();
+ const {cloud,setCloud,isFetching}=useCloudApp();
  const [query,setQuery]=useState('');
  const [filter,setFilter]=useState<string>(cloud);
  const [page,setPage]=useState(1);
@@ -41,6 +397,8 @@ export function UnusedView() {
    setPage(1);
  }, [cloud]);
 
+ if (isFetching) return <UnusedViewSkeleton cloud={cloud}/>;
+
  const onFilterChange = (v: string) => {
    setFilter(v);
    setPage(1);
@@ -49,7 +407,7 @@ export function UnusedView() {
    }
  };
 
- const cloudItems = unused.filter(x => (filter === 'All' ? true : x.provider === filter));
+ const cloudItems = (unused || []).filter(x => (filter === 'All' ? true : x.provider === filter));
  const rows = cloudItems.filter(x => x.name.toLowerCase().includes(query.toLowerCase()));
  const potential = cloudItems.filter(x => x.status === 'Potentially Unused').length;
  const totalCost = cloudItems.reduce((a,b) => a + b.cost, 0);
@@ -91,7 +449,7 @@ export function UnusedView() {
 function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.service} · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3><p>{item.evidence}</p></div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
 export function UtilizationView() {
  const {providerMeta,resources}=useDataset();
- const {cloud,setCloud}=useCloudApp();
+ const {cloud,setCloud,isFetching}=useCloudApp();
  const [query,setQuery]=useState('');
  const [filter,setFilter]=useState<string>(cloud);
  const [page,setPage]=useState(1);
@@ -101,6 +459,8 @@ export function UtilizationView() {
    setFilter(cloud);
    setPage(1);
  }, [cloud]);
+
+ if (isFetching) return <UtilizationViewSkeleton cloud={cloud}/>;
 
  const onFilterChange = (v: string) => {
    setFilter(v);
@@ -158,7 +518,7 @@ export function UtilizationView() {
 }
 export function RecommendationsView() {
  const {providerMeta,recommendations}=useDataset();
- const {cloud,setCloud,notify}=useCloudApp();
+ const {cloud,setCloud,notify,isFetching}=useCloudApp();
  const [filter,setFilter]=useState<string>(cloud);
  const [priority,setPriority]=useState('All');
  const [selected,setSelected]=useState<Recommendation|null>(null);
@@ -170,6 +530,8 @@ export function RecommendationsView() {
  useEffect(() => {
    setFilter(cloud);
  }, [cloud]);
+
+ if (isFetching) return <RecommendationsViewSkeleton cloud={cloud}/>;
 
  const onFilterChange = (v: string) => {
    setFilter(v);

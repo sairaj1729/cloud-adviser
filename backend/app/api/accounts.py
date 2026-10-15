@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 from app.db.mongodb import get_database
 from app.core.dependencies import get_current_user
@@ -120,7 +123,16 @@ async def verify_account(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
     connector = ProviderFactory.get_connector(acc)
-    verified = await connector.verify_connection()
+    verified = False
+    try:
+        verified = await connector.verify_connection()
+    except Exception as e:
+        logger.warning(f"Account verification error: {e}")
+        verified = False
+    finally:
+        if hasattr(connector, "close") and callable(connector.close):
+            connector.close()
+
     new_status = "connected" if verified else "error"
 
     await db.cloud_accounts.update_one(

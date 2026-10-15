@@ -37,6 +37,8 @@ class CloudAccountCreateSchema(BaseModel):
     azure_client_id: Optional[str] = None
     azure_client_secret: Optional[str] = None
     gcp_project_id: Optional[str] = None
+    gcp_service_account_key: Optional[str] = None
+    gcp_billing_table: Optional[str] = None
     provider_config: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class CloudAccountOutSchema(BaseModel):
@@ -58,4 +60,6 @@ class ScanSummarySchema(BaseModel):
     resources_scanned: int
     rules_evaluated: int
     findings_created: int
+    findings_stored: Optional[int] = None
+    rule_matches_detected: Optional[int] = None
     estimated_monthly_savings: float

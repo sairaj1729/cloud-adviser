@@ -112,6 +112,9 @@ class ScanService:
             )
             normalized_count += 1
 
+        if hasattr(connector, "close") and callable(connector.close):
+            connector.close()
+
         # 4. Seed Rules if empty & Run Rule Engine
         await RuleRegistry.seed_rules(db)
         rule_engine = RuleEngine(db)
@@ -122,5 +125,7 @@ class ScanService:
             resources_scanned=normalized_count,
             rules_evaluated=scan_results.get("rules_evaluated", 0),
             findings_created=scan_results.get("findings_created", 0),
+            findings_stored=scan_results.get("findings_stored", scan_results.get("findings_created", 0)),
+            rule_matches_detected=scan_results.get("rule_matches_detected", 0),
             estimated_monthly_savings=scan_results.get("estimated_monthly_savings", 0.0)
         )

@@ -198,6 +198,10 @@ class AccountService:
             provider_config["azure_client_secret"] = acc_in.azure_client_secret
         if acc_in.gcp_project_id:
             provider_config["gcp_project_id"] = acc_in.gcp_project_id
+        if acc_in.gcp_service_account_key:
+            provider_config["gcp_credentials"] = acc_in.gcp_service_account_key
+        if acc_in.gcp_billing_table:
+            provider_config["gcp_billing_table"] = acc_in.gcp_billing_table
 
         doc = {
             "user_id": user_id,
@@ -215,15 +219,38 @@ class AccountService:
 
         # Verify connection
         connector = ProviderFactory.get_connector(doc)
-        verified = await connector.verify_connection()
+        verified = False
+        try:
+            verified = await connector.verify_connection()
+        except Exception as conn_err:
+            logger.warning(f"Connection verification error: {conn_err}")
+            verified = False
+        finally:
+            if hasattr(connector, "close") and callable(connector.close):
+                connector.close()
+
         if not verified:
             doc["status"] = "error"
+        else:
+            doc["status"] = "connected"
 
         res = await db.cloud_accounts.insert_one(doc)
         doc["id"] = str(res.inserted_id)
 
+        # Trigger automatic initial resource discovery if connection is verified
+        if verified:
+            try:
+                import asyncio
+                from app.services.scan_service import ScanService
+                asyncio.create_task(ScanService.execute_scan(db, user_id, doc["id"]))
+            except Exception as scan_err:
+                logger.debug(f"Failed to launch initial scan: {scan_err}")
+
         # Sanitize sensitive keys for response DTO
-        sanitized_config = {k: v for k, v in provider_config.items() if "secret" not in k.lower()}
+        sanitized_config = {
+            k: v for k, v in provider_config.items()
+            if not any(s in k.lower() for s in ["secret", "key", "credential", "private"])
+        }
 
         return CloudAccountOutSchema(
             id=doc["id"],

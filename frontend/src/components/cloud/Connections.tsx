@@ -10,6 +10,8 @@ import { providerMeta, type Cloud as CloudType } from '@/mockData/cloud';
 import { cn } from '@/lib/utils';
 import { apiCreateAccount, apiListAccounts, apiVerifyAccount, apiScanAccount, apiDeleteAccount } from '@/config/api';
 import { AwsConnectionWizard } from './AwsConnectionWizard';
+import { AzureConnectionWizard } from './AzureConnectionWizard';
+import { GcpConnectionWizard } from './GcpConnectionWizard';
 
 type Status = 'Connected' | 'Disconnected' | 'Error';
 type Conn = { id: string; provider: CloudType; name: string; ref: string; status: Status; lastSync: string };
@@ -95,6 +97,52 @@ export function ConnectionsPanel() {
     };
     setConns(c => {
       const existing = c.findIndex(x => x.id === newConn.id || (x.provider === 'AWS' && x.ref === newConn.ref));
+      if (existing >= 0) {
+        const list = [...c];
+        list[existing] = newConn;
+        return list;
+      }
+      return [newConn, ...c];
+    });
+    try {
+      await loadAccounts();
+    } catch {}
+  };
+
+  const handleAzureConnected = async (account: any) => {
+    const newConn: Conn = {
+      id: account.id || `azure-${Date.now()}`,
+      provider: 'Azure',
+      name: account.display_name,
+      ref: mask('Azure', account.account_identifier || ''),
+      status: account.status === 'connected' ? 'Connected' : 'Error',
+      lastSync: 'Just now'
+    };
+    setConns(c => {
+      const existing = c.findIndex(x => x.id === newConn.id || (x.provider === 'Azure' && x.ref === newConn.ref));
+      if (existing >= 0) {
+        const list = [...c];
+        list[existing] = newConn;
+        return list;
+      }
+      return [newConn, ...c];
+    });
+    try {
+      await loadAccounts();
+    } catch {}
+  };
+
+  const handleGcpConnected = async (account: any) => {
+    const newConn: Conn = {
+      id: account.id || `gcp-${Date.now()}`,
+      provider: 'GCP',
+      name: account.display_name,
+      ref: mask('GCP', account.account_identifier || ''),
+      status: account.status === 'connected' ? 'Connected' : 'Error',
+      lastSync: 'Just now'
+    };
+    setConns(c => {
+      const existing = c.findIndex(x => x.id === newConn.id || (x.provider === 'GCP' && x.ref === newConn.ref));
       if (existing >= 0) {
         const list = [...c];
         list[existing] = newConn;
@@ -231,20 +279,21 @@ export function ConnectionsPanel() {
       notify={notify}
     />
 
-    {/* Azure & GCP Dialog */}
-    <Dialog open={open === 'Azure' || open === 'GCP'} onOpenChange={o => !o && setOpen(null)}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{open && cardCopy[open].label}</DialogTitle><DialogDescription>Enter identifiers only. Grant Cloud Advisor a read-only role in your {open} console — no secret keys are entered here.</DialogDescription></DialogHeader>
-        <div className="grid gap-4">{open && fields[open].map(f => <div key={f.id} className="grid gap-1.5">
-          <Label htmlFor={f.id}>{f.label}</Label>
-          <Input id={f.id} placeholder={f.placeholder} maxLength={120} value={values[f.id] ?? ''} onChange={e => setValues(v => ({ ...v, [f.id]: e.target.value }))} aria-invalid={!!errors[f.id]} />
-          {errors[f.id] ? <small className="conn-error-text">{errors[f.id]}</small> : <small className="text-muted-foreground text-xs">{f.hint}</small>}
-        </div>)}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Lock size={13} />Read-only security — credentials managed via FastAPI backend.</div>
-        </div>
-        <DialogFooter><Button variant="outline" onClick={() => setOpen(null)}>Cancel</Button><Button onClick={submit} disabled={busy === 'new'}>{busy === 'new' ? 'Verifying…' : 'Connect'}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+    {/* Azure Dedicated Service Principal Wizard */}
+    <AzureConnectionWizard
+      open={open === 'Azure'}
+      onClose={() => setOpen(null)}
+      onSuccess={handleAzureConnected}
+      notify={notify}
+    />
+
+    {/* GCP Dedicated Service Account Wizard */}
+    <GcpConnectionWizard
+      open={open === 'GCP'}
+      onClose={() => setOpen(null)}
+      onSuccess={handleGcpConnected}
+      notify={notify}
+    />
 
     <AlertDialog open={!!remove} onOpenChange={o => !o && setRemove(null)}>
       <AlertDialogContent>

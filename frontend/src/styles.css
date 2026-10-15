@@ -24,8 +24,16 @@ html.light .desktop-sidebar{background:oklch(.963 .008 245)}html.light .avatar-s
 .conn-error-text{display:block;color:var(--destructive);font-size:12px}
 
 /* AWS STS Connection Wizard Styles */
-.aws-wizard-dialog { max-width: 660px !important; width: 95vw !important; }
-.aws-stepper { display: flex; align-items: center; justify-content: space-between; position: relative; margin-bottom: 24px; padding: 0 4px; }
+.aws-wizard-dialog {
+  max-width: 660px !important;
+  width: 95vw !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.aws-stepper { display: flex; align-items: center; justify-content: space-between; position: relative; margin-bottom: 20px; padding: 0 4px; flex-shrink: 0; }
 .aws-stepper::before { content: ''; position: absolute; top: 15px; left: 24px; right: 24px; height: 2px; background: var(--border); z-index: 0; }
 .aws-step-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: default; }
 .aws-step-circle { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--card); border: 2px solid var(--border); color: var(--muted-foreground); transition: all 0.2s ease; }
@@ -35,8 +43,147 @@ html.light .desktop-sidebar{background:oklch(.963 .008 245)}html.light .avatar-s
 .aws-step-active .aws-step-label { color: var(--foreground); }
 .aws-step-completed .aws-step-label { color: var(--success); }
 
+.aws-wizard-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
 .aws-copy-box { background: color-mix(in oklab, var(--background) 80%, black); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--foreground); word-break: break-all; }
-.aws-policy-pre { background: color-mix(in oklab, var(--background) 90%, black); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11.5px; line-height: 1.5; color: #a5f3fc; overflow-x: auto; max-height: 220px; white-space: pre; position: relative; }
+.aws-policy-pre { background: color-mix(in oklab, var(--background) 90%, black); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11.5px; line-height: 1.5; color: #a5f3fc; overflow-x: auto; overflow-y: auto; max-height: 170px; white-space: pre; position: relative; }
 .aws-info-card { background: color-mix(in oklab, var(--secondary) 60%, transparent); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 12px; line-height: 1.5; }
 .aws-badge-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: color-mix(in oklab, var(--primary) 12%, transparent); color: var(--primary); border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent); }
+
+/* Azure Connection Wizard Styles */
+.azure-wizard-dialog {
+  max-width: 660px !important;
+  width: 95vw !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.azure-step-active .aws-step-circle {
+  border-color: var(--azure) !important;
+  background: var(--azure) !important;
+  color: #fff !important;
+  box-shadow: 0 0 14px color-mix(in oklab, var(--azure) 35%, transparent) !important;
+}
+.azure-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--azure) 15%, transparent);
+  color: var(--azure);
+  border: 1px solid color-mix(in oklab, var(--azure) 30%, transparent);
+}
+.azure-copy-box {
+  background: color-mix(in oklab, var(--background) 80%, black);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--foreground);
+  word-break: break-all;
+}
+.azure-code-pre {
+  background: color-mix(in oklab, var(--background) 90%, black);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #7dd3fc;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 170px;
+  white-space: pre;
+  position: relative;
+}
+
+/* Sleek custom scroller for modal trays */
+.custom-scrollbar::-webkit-scrollbar,
+.aws-wizard-content::-webkit-scrollbar,
+.aws-policy-pre::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track,
+.aws-wizard-content::-webkit-scrollbar-track,
+.aws-policy-pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.aws-wizard-content::-webkit-scrollbar-thumb,
+.aws-policy-pre::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.aws-wizard-content::-webkit-scrollbar-thumb:hover,
+.aws-policy-pre::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Skeleton Loading Shimmer & Pulse Styles */
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0.4;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--card) 85%, transparent) 0%,
+    color-mix(in oklab, var(--primary) 12%, var(--card)) 50%,
+    color-mix(in oklab, var(--card) 85%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerWave 2.2s infinite ease-in-out;
+}
+
+.loading-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 28%, transparent);
+}
 

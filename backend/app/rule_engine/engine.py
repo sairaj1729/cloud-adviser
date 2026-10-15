@@ -45,8 +45,8 @@ class RuleEngine:
         resources = await res_cursor.to_list(length=10000)
 
         rules_evaluated_count = 0
-        findings_created_count = 0
-        total_monthly_savings = 0.0
+        rule_matches_detected = 0
+        upserted_finding_keys = set()
 
         for resource in resources:
             for rule in rules:
@@ -58,11 +58,14 @@ class RuleEngine:
                 type_aliases = {
                     "virtual_machine": {"virtual_machine", "compute_instance"},
                     "compute_instance": {"virtual_machine", "compute_instance"},
-                    "database_instance": {"database_instance", "database"},
-                    "database": {"database_instance", "database"},
-                    "storage_volume": {"storage_volume", "block_storage", "object_storage"},
-                    "block_storage": {"storage_volume", "block_storage", "object_storage"},
-                    "object_storage": {"storage_volume", "block_storage", "object_storage"}
+                    "database_instance": {"database_instance", "database", "cloud_sql_instance"},
+                    "database": {"database_instance", "database", "cloud_sql_instance"},
+                    "cloud_sql_instance": {"database_instance", "database", "cloud_sql_instance"},
+                    "storage_volume": {"storage_volume", "block_storage", "object_storage", "persistent_disk", "storage_bucket"},
+                    "block_storage": {"storage_volume", "block_storage", "object_storage", "persistent_disk"},
+                    "object_storage": {"storage_volume", "block_storage", "object_storage", "storage_bucket"},
+                    "persistent_disk": {"storage_volume", "block_storage", "object_storage", "persistent_disk"},
+                    "storage_bucket": {"storage_volume", "block_storage", "object_storage", "storage_bucket"}
                 }
                 valid_types = type_aliases.get(rule_type, {rule_type})
                 if res_type not in valid_types:
@@ -76,6 +79,9 @@ class RuleEngine:
                 )
 
                 if is_match:
+                    rule_matches_detected += 1
+                    upserted_finding_keys.add((str(resource.get("resource_id")), str(rule.get("rule_id"))))
+
                     # Generate Evidence
                     evidence = EvidenceGenerator.build_evidence(rule, resource, evidence_items)
                     # Calculate Savings
@@ -118,15 +124,29 @@ class RuleEngine:
                         upsert=True
                     )
 
-                    findings_created_count += 1
-                    total_monthly_savings += savings.get("monthly", 0.0)
+        # Determine actual distinct findings stored for this account
+        acc_finding_query: Dict[str, Any] = {"user_id": user_id}
+        if cloud_account_id:
+            acc_finding_query["cloud_account_id"] = cloud_account_id
+
+        acc_findings = await self.db.findings.find(acc_finding_query).to_list(length=10000)
+        if not acc_findings and query.get("provider"):
+            acc_findings = await self.db.findings.find({
+                "user_id": user_id,
+                "provider": query["provider"]
+            }).to_list(length=10000)
+
+        actual_findings_count = len(acc_findings) if acc_findings else len(upserted_finding_keys)
+        actual_monthly_savings = sum(float(f.get("savings", {}).get("monthly", 0.0) or 0.0) for f in acc_findings) if acc_findings else 0.0
 
         return {
             "status": "completed",
             "resources_scanned": len(resources),
             "rules_evaluated": rules_evaluated_count,
-            "findings_created": findings_created_count,
-            "estimated_monthly_savings": round(total_monthly_savings, 2)
+            "rule_matches_detected": rule_matches_detected,
+            "findings_created": actual_findings_count,
+            "findings_stored": actual_findings_count,
+            "estimated_monthly_savings": round(actual_monthly_savings, 2)
         }
 
     async def evaluate_all_for_user(self, user_id: str) -> Dict[str, Any]:
@@ -157,8 +177,8 @@ class RuleEngine:
             resources = await res_cursor.to_list(length=10000)
 
         rules_evaluated_count = 0
-        findings_created_count = 0
-        total_monthly_savings = 0.0
+        rule_matches_detected = 0
+        upserted_finding_keys = set()
 
         for resource in resources:
             for rule in active_rules:
@@ -169,11 +189,14 @@ class RuleEngine:
                 type_aliases = {
                     "virtual_machine": {"virtual_machine", "compute_instance"},
                     "compute_instance": {"virtual_machine", "compute_instance"},
-                    "database_instance": {"database_instance", "database"},
-                    "database": {"database_instance", "database"},
-                    "storage_volume": {"storage_volume", "block_storage", "object_storage"},
-                    "block_storage": {"storage_volume", "block_storage", "object_storage"},
-                    "object_storage": {"storage_volume", "block_storage", "object_storage"}
+                    "database_instance": {"database_instance", "database", "cloud_sql_instance"},
+                    "database": {"database_instance", "database", "cloud_sql_instance"},
+                    "cloud_sql_instance": {"database_instance", "database", "cloud_sql_instance"},
+                    "storage_volume": {"storage_volume", "block_storage", "object_storage", "persistent_disk", "storage_bucket"},
+                    "block_storage": {"storage_volume", "block_storage", "object_storage", "persistent_disk"},
+                    "object_storage": {"storage_volume", "block_storage", "object_storage", "storage_bucket"},
+                    "persistent_disk": {"storage_volume", "block_storage", "object_storage", "persistent_disk"},
+                    "storage_bucket": {"storage_volume", "block_storage", "object_storage", "storage_bucket"}
                 }
                 valid_types = type_aliases.get(rule_type, {rule_type})
                 if res_type not in valid_types:
@@ -186,6 +209,8 @@ class RuleEngine:
                 )
 
                 if is_match:
+                    rule_matches_detected += 1
+                    upserted_finding_keys.add((str(resource.get("resource_id")), str(rule.get("rule_id"))))
                     evidence = EvidenceGenerator.build_evidence(rule, resource, evidence_items)
                     savings = SavingsCalculator.calculate_savings(rule, resource)
 
@@ -223,8 +248,6 @@ class RuleEngine:
                         },
                         upsert=True
                     )
-                    findings_created_count += 1
-                    total_monthly_savings += savings.get("monthly", 0.0)
 
         # Clean up stale findings for rules that are no longer active in MongoDB
         if active_rule_ids:
@@ -235,9 +258,20 @@ class RuleEngine:
             if deleted_stale.deleted_count > 0:
                 logger.info(f"Pruned {deleted_stale.deleted_count} stale findings from inactive/removed rules.")
 
+        # Query actual distinct findings stored in db.findings for this user
+        stored_findings_cursor = self.db.findings.find({"user_id": user_id})
+        stored_findings = await stored_findings_cursor.to_list(length=10000)
+        if not stored_findings and target_user_id != user_id:
+            stored_findings_cursor = self.db.findings.find({"user_id": target_user_id})
+            stored_findings = await stored_findings_cursor.to_list(length=10000)
+
+        stored_findings_count = len(stored_findings) if stored_findings else len(upserted_finding_keys)
+        actual_monthly_savings = sum(float(f.get("savings", {}).get("monthly", 0.0) or 0.0) for f in stored_findings) if stored_findings else 0.0
+
         logger.info(
             f"Rule evaluation completed for user {user_id}: "
-            f"{findings_created_count} findings stored in db.findings (${total_monthly_savings:.2f}/mo potential savings)"
+            f"{stored_findings_count} findings stored in db.findings (${actual_monthly_savings:.2f}/mo potential savings, "
+            f"{rule_matches_detected} condition matches across snapshots)"
         )
 
         return {
@@ -245,7 +279,9 @@ class RuleEngine:
             "active_rules_count": len(active_rules),
             "resources_scanned": len(resources),
             "rules_evaluated": rules_evaluated_count,
-            "findings_stored": findings_created_count,
-            "estimated_monthly_savings": round(total_monthly_savings, 2)
+            "rule_matches_detected": rule_matches_detected,
+            "findings_stored": stored_findings_count,
+            "findings_created": stored_findings_count,
+            "estimated_monthly_savings": round(actual_monthly_savings, 2)
         }
 
