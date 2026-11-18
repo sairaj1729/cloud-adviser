@@ -39,17 +39,24 @@ async def generate_recommendation_for_resource(
 
 @router.post("/batch-generate", response_model=AIBatchRecommendationResponse)
 async def batch_generate_recommendations(
-    limit: int = Query(25, ge=1, le=100),
-    provider: Optional[str] = Query(None, description="LLM provider override"),
+    limit: int = Query(15, ge=1, le=100),
+    cloud_provider: Optional[str] = Query(None, description="Cloud provider filter: 'aws', 'azure', 'gcp'"),
+    dataset_id: Optional[str] = Query(None, description="Dataset identifier filter"),
+    force_refresh: bool = Query(False, description="Re-generate even if recommendation already cached"),
+    provider: Optional[str] = Query(None, description="LLM provider override: 'openrouter', 'groq', 'gemini'"),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
-    Run AI recommendation analysis in batch across all open Rule Engine findings in MongoDB.
+    Run AI recommendation analysis in batch across prioritized open Rule Engine findings in MongoDB.
+    Prioritizes findings with highest potential savings.
     """
     service = AIRecommendationService(db)
     try:
         return await service.batch_generate_for_open_findings(
+            cloud_provider=cloud_provider,
+            dataset_id=dataset_id,
             limit=limit,
+            force_refresh=force_refresh,
             provider_override=provider
         )
     except Exception as e:

@@ -128,6 +128,18 @@ class AnalyticsService:
 
         logger.info(f"Retrieved {len(findings)} findings directly from MongoDB findings collection for dataset '{active_dataset_id}'.")
 
+        # Pre-fetch persisted AI recommendations from db.ai_recommendations
+        ai_recs_by_res: Dict[str, Any] = {}
+        try:
+            ai_recs_cursor = db.ai_recommendations.find({})
+            ai_recs_list = await ai_recs_cursor.to_list(length=10000)
+            for r in ai_recs_list:
+                if "resource_id" in r:
+                    r["_id"] = str(r.get("_id", ""))
+                    ai_recs_by_res[r["resource_id"]] = r
+        except Exception as e:
+            logger.warning(f"Could not pre-fetch ai_recommendations: {e}")
+
         recommendations = []
         underutilized = []
         unused_services = []
@@ -149,6 +161,8 @@ class AnalyticsService:
             severity = f.get("severity", "medium").capitalize()
             priority = "High" if severity == "High" else "Medium"
             status = f.get("status", "open")
+            res_id_val = f.get("resource_id", rname)
+            ai_data = f.get("ai_recommendation") or ai_recs_by_res.get(res_id_val)
 
             # Format Recommendation
             recommendations.append({
@@ -156,7 +170,7 @@ class AnalyticsService:
                 "title": f"{rule_name} ({rname})",
                 "provider": prov,
                 "resource": rname,
-                "resource_id": f.get("resource_id", rname),
+                "resource_id": res_id_val,
                 "problem": explanation,
                 "evidence": explanation,
                 "savings": round(savings_m, 2),
@@ -165,7 +179,7 @@ class AnalyticsService:
                 "action": action,
                 "cost": round(cost_m, 2),
                 "status": status,
-                "ai_recommendation": f.get("ai_recommendation")
+                "ai_recommendation": ai_data
             })
 
             # Categorize into Underutilized or Unused

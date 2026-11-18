@@ -55,8 +55,8 @@ class AIRecommendationService:
             upsert=True
         )
 
-        # Also update finding if present
-        await self.db.findings.update_one(
+        # Also update all finding records for this resource
+        await self.db.findings.update_many(
             {"resource_id": resource_id},
             {"$set": {"ai_recommendation": validated, "updated_at": datetime.now(timezone.utc)}}
         )
@@ -66,35 +66,76 @@ class AIRecommendationService:
     async def batch_generate_for_open_findings(
         self,
         user_id: Optional[str] = None,
-        limit: int = 50,
+        dataset_id: Optional[str] = None,
+        cloud_provider: Optional[str] = None,
+        limit: int = 15,
+        force_refresh: bool = False,
         provider_override: Optional[str] = None
     ) -> AIBatchRecommendationResponse:
-        """Runs AI recommendation generation across open findings."""
-        query = {"status": {"$in": ["open", "pending", "ACTIVE"]}}
+        """
+        Runs AI recommendation generation across prioritized open findings.
+        Prioritizes highest-savings findings first, leverages parallel async execution,
+        and reuses cached recommendations to ensure fast response times.
+        """
+        import asyncio
+
+        query: Dict[str, Any] = {"status": {"$in": ["open", "pending", "ACTIVE"]}}
         if user_id:
             query["user_id"] = user_id
+        if dataset_id:
+            query["dataset_id"] = dataset_id
+        if cloud_provider and cloud_provider.lower() not in ["all", ""]:
+            query["provider"] = cloud_provider.lower()
 
-        cursor = self.db.findings.find(query).limit(limit)
+        # Sort by savings.monthly descending so top-impact recommendations are prioritized!
+        cursor = self.db.findings.find(query).sort("savings.monthly", -1).limit(limit)
         findings = await cursor.to_list(length=limit)
 
-        results: List[AIRecommendationResponse] = []
-        total_savings = 0.0
+        # Pre-fetch existing ai_recommendations to avoid redundant LLM calls if not forced
+        ai_cached_by_res: Dict[str, Any] = {}
+        if not force_refresh:
+            try:
+                res_ids = [f.get("resource_id") for f in findings if f.get("resource_id")]
+                if res_ids:
+                    cached_docs = await self.db.ai_recommendations.find({"resource_id": {"$in": res_ids}}).to_list(length=len(res_ids))
+                    for c in cached_docs:
+                        c["_id"] = str(c.get("_id", ""))
+                        ai_cached_by_res[c["resource_id"]] = c
+            except Exception as e:
+                logger.debug(f"Cache check skipped: {e}")
 
-        for f in findings:
+        sem = asyncio.Semaphore(3)
+
+        async def _process_finding(f: Dict[str, Any]) -> Optional[AIRecommendationResponse]:
             res_id = f.get("resource_id")
             if not res_id:
-                continue
-            try:
-                rec = await self.generate_for_resource(
-                    resource_id=res_id,
-                    finding_id=str(f.get("_id", "")),
-                    provider_override=provider_override
-                )
-                results.append(rec)
-                total_savings += rec.estimated_monthly_savings
-            except Exception as e:
-                logger.error(f"Error generating AI recommendation for resource {res_id}: {e}")
-                continue
+                return None
+
+            # Check cache in finding or in db.ai_recommendations
+            if not force_refresh:
+                cached = f.get("ai_recommendation") or ai_cached_by_res.get(res_id)
+                if cached and isinstance(cached, dict):
+                    try:
+                        return AIRecommendationResponse(**cached)
+                    except Exception:
+                        pass
+
+            async with sem:
+                try:
+                    return await self.generate_for_resource(
+                        resource_id=res_id,
+                        finding_id=str(f.get("_id", "")),
+                        provider_override=provider_override
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating AI recommendation for resource {res_id}: {e}")
+                    return None
+
+        tasks = [_process_finding(f) for f in findings]
+        raw_results = await asyncio.gather(*tasks)
+
+        results: List[AIRecommendationResponse] = [r for r in raw_results if r is not None]
+        total_savings = sum(r.estimated_monthly_savings for r in results)
 
         return AIBatchRecommendationResponse(
             total_findings_analyzed=len(findings),

@@ -18,18 +18,27 @@ class ContextBuilder:
         self.db = db
 
     async def build_context(self, resource_id: str, finding_id: str = None) -> Tuple[str, Dict[str, Any]]:
-        # 1. Fetch Resource from MongoDB
+        # 1. Fetch Resource from MongoDB (supports resource_id, id, or name)
         resource = await self.db.resources.find_one({"resource_id": resource_id})
         if not resource:
-            # Fallback check on string ID match
             resource = await self.db.resources.find_one({"id": resource_id})
-            if not resource:
-                raise ValueError(f"Resource '{resource_id}' not found in MongoDB.")
+        if not resource:
+            resource = await self.db.resources.find_one({"name": resource_id})
+        if not resource:
+            # Fallback search matching trailing resource identifier segment
+            short_id = resource_id.split("/")[-1].split(":")[-1]
+            resource = await self.db.resources.find_one({"name": short_id})
+        if not resource:
+            raise ValueError(f"Resource '{resource_id}' not found in MongoDB.")
 
         # 2. Fetch Finding from MongoDB (if exists)
         finding = None
         if finding_id:
-            finding = await self.db.findings.find_one({"id": finding_id})
+            try:
+                from bson import ObjectId
+                finding = await self.db.findings.find_one({"_id": ObjectId(finding_id)})
+            except Exception:
+                finding = await self.db.findings.find_one({"id": finding_id})
         if not finding:
             finding = await self.db.findings.find_one({"resource_id": resource_id})
 

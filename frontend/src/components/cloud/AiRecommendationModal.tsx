@@ -20,6 +20,7 @@ interface AiRecommendationModalProps {
   onOpenChange: (open: boolean) => void;
   recommendation: Recommendation | null;
   onApproveSuccess?: (recId: string, updatedAiData: AIRecommendationData) => void;
+  onGenerated?: (recId: string, data: AIRecommendationData) => void;
   onNotify?: (msg: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function AiRecommendationModal({
   onOpenChange,
   recommendation,
   onApproveSuccess,
+  onGenerated,
   onNotify
 }: AiRecommendationModalProps) {
   const [loading, setLoading] = useState<boolean>(false);
@@ -71,6 +73,9 @@ export function AiRecommendationModal({
         provider === 'auto' ? undefined : provider
       );
       setAiData(data);
+      if (onGenerated && recommendation) {
+        onGenerated(recommendation.id, data);
+      }
       if (onNotify) {
         onNotify(`AI Analysis generated using ${data.llm_provider_used} (${data.llm_model_used})`);
       }

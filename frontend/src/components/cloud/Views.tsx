@@ -519,7 +519,7 @@ export function UtilizationView() {
 }
 export function RecommendationsView() {
   const {providerMeta,recommendations}=useDataset();
-  const {cloud,setCloud,notify,isFetching}=useCloudApp();
+  const {cloud,setCloud,notify,isFetching,activeDatasetId}=useCloudApp();
   const [filter,setFilter]=useState<string>(cloud);
   const [priority,setPriority]=useState('All');
   const [selected,setSelected]=useState<Recommendation|null>(null);
@@ -528,10 +528,17 @@ export function RecommendationsView() {
   const [statuses,setStatuses]=useState<Record<string,ApprovalStatus>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-decisions')??'{}')}catch{}return {}});
   const [audits,setAudits]=useState<Record<string,AuditEvent[]>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-audits')??'{}')}catch{}return {}});
 
-  // AI Recommendation State
+  // AI Recommendation State (persisted to localStorage)
   const [aiModalRec, setAiModalRec] = useState<Recommendation | null>(null);
   const [batchAnalyzing, setBatchAnalyzing] = useState<boolean>(false);
-  const [aiOverrides, setAiOverrides] = useState<Record<string, any>>({});
+  const [aiOverrides, setAiOverrides] = useState<Record<string, any>>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return JSON.parse(localStorage.getItem('cloud-advisor-ai-recommendations') ?? '{}');
+      }
+    } catch {}
+    return {};
+  });
 
   useEffect(() => {
     setFilter(cloud);
@@ -564,8 +571,17 @@ export function RecommendationsView() {
   };
 
   const handleAiApproveSuccess = (recId: string, updatedAiData: any) => {
-    setAiOverrides(prev => ({ ...prev, [recId]: updatedAiData }));
-    const rec = recommendations.find(r => r.id === recId);
+    setAiOverrides(prev => {
+      const merged = { ...prev, [recId]: updatedAiData };
+      if (updatedAiData.resource_id) merged[updatedAiData.resource_id] = updatedAiData;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cloud-advisor-ai-recommendations', JSON.stringify(merged));
+        }
+      } catch {}
+      return merged;
+    });
+    const rec = recommendations.find(r => r.id === recId || r.resource_id === recId);
     if (rec) {
       decide(
         rec,
@@ -575,24 +591,59 @@ export function RecommendationsView() {
     }
   };
 
+  const handleAiGenerated = (recId: string, generatedAiData: any) => {
+    setAiOverrides(prev => {
+      const merged = { ...prev, [recId]: generatedAiData };
+      if (generatedAiData.resource_id) merged[generatedAiData.resource_id] = generatedAiData;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cloud-advisor-ai-recommendations', JSON.stringify(merged));
+        }
+      } catch {}
+      return merged;
+    });
+  };
+
   const handleBatchAiAnalysis = async () => {
     setBatchAnalyzing(true);
     try {
-      notify('Starting AI analysis across all open recommendations via active LLM...');
-      const res = await apiBatchGenerateAIRecommendations(25);
+      notify(`Running AI Fleet Analysis on top ${filter === 'All' ? 'multi-cloud' : filter} recommendations...`);
+      const res = await apiBatchGenerateAIRecommendations(
+        15,
+        filter === 'All' ? undefined : filter,
+        activeDatasetId || undefined
+      );
+
       const newOverrides: Record<string, any> = {};
       for (const item of res.items) {
+        if (item.resource_id) {
+          newOverrides[item.resource_id] = item;
+        }
         const match = recommendations.find(r => 
           (r.resource_id === item.resource_id) || 
           (r.resource === item.resource_id) || 
-          (r.resource === item.resource_name)
+          (r.resource === item.resource_name) ||
+          (item.resource_id && r.resource_id && r.resource_id.includes(item.resource_id)) ||
+          (item.resource_id && r.resource && item.resource_id.includes(r.resource))
         );
         if (match) {
           newOverrides[match.id] = item;
+          if (match.resource_id) newOverrides[match.resource_id] = item;
+          if (match.resource) newOverrides[match.resource] = item;
         }
       }
-      setAiOverrides(prev => ({ ...prev, ...newOverrides }));
-      notify(`AI analysis complete: ${res.recommendations_generated} recommendations synthesized, saving ${money(res.total_estimated_monthly_savings)}/mo!`);
+
+      setAiOverrides(prev => {
+        const merged = { ...prev, ...newOverrides };
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('cloud-advisor-ai-recommendations', JSON.stringify(merged));
+          }
+        } catch {}
+        return merged;
+      });
+
+      notify(`✨ AI Fleet Analysis complete: ${res.recommendations_generated} recommendations prioritized, saving ${money(res.total_estimated_monthly_savings)}/mo!`);
     } catch (err: any) {
       console.error('Batch AI analysis error:', err);
       notify(`AI batch error: ${err?.message || 'Failed to complete fleet analysis'}`);
@@ -670,7 +721,7 @@ export function RecommendationsView() {
 
     <div className="recommendations-grid">
       {rows.map(r => {
-        const aiInfo = aiOverrides[r.id] || r.ai_recommendation;
+        const aiInfo = aiOverrides[r.id] || (r.resource_id && aiOverrides[r.resource_id]) || (r.resource && aiOverrides[r.resource]) || r.ai_recommendation;
 
         return (
           <article className="surface recommendation-card" key={r.id}>
@@ -745,50 +796,56 @@ export function RecommendationsView() {
 
           {/* AI Advisor Section inside Drawer */}
           <div className="drawer-section border-t border-border pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <Sparkles size={14} className="text-primary" /> AI FinOps Advisor
-              </h3>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  const aiData = aiOverrides[selected.id] || selected.ai_recommendation;
-                  setAiModalRec(aiData ? { ...selected, ai_recommendation: aiData } : selected);
-                  setSelected(null);
-                }}
-                className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Sparkles size={11} className="text-amber-400" />
-                {(aiOverrides[selected.id] || selected.ai_recommendation) ? 'Full AI Modal' : 'Generate AI Insight'}
-              </Button>
-            </div>
-
-            {(aiOverrides[selected.id] || selected.ai_recommendation) ? (
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2 text-xs">
-                <div className="flex items-center justify-between font-mono">
-                  <span className="font-bold text-primary uppercase">
-                    {(aiOverrides[selected.id] || selected.ai_recommendation).action}
-                    {(aiOverrides[selected.id] || selected.ai_recommendation).target_sku ? ` ➔ ${(aiOverrides[selected.id] || selected.ai_recommendation).target_sku}` : ''}
-                  </span>
-                  <span className="font-bold text-emerald-400">
-                    {money((aiOverrides[selected.id] || selected.ai_recommendation).estimated_monthly_savings)}/mo
-                  </span>
-                </div>
-                <p className="text-foreground/90 leading-relaxed">
-                  {(aiOverrides[selected.id] || selected.ai_recommendation).justification}
-                </p>
-                {(aiOverrides[selected.id] || selected.ai_recommendation).remediation_command && (
-                  <div className="rounded bg-zinc-950 p-2 font-mono text-[11px] text-zinc-200 overflow-x-auto">
-                    {(aiOverrides[selected.id] || selected.ai_recommendation).remediation_command}
+            {(() => {
+              const aiData = selected ? (aiOverrides[selected.id] || (selected.resource_id && aiOverrides[selected.resource_id]) || (selected.resource && aiOverrides[selected.resource]) || selected.ai_recommendation) : null;
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Sparkles size={14} className="text-primary" /> AI FinOps Advisor
+                    </h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setAiModalRec(aiData ? { ...selected, ai_recommendation: aiData } : selected);
+                        setSelected(null);
+                      }}
+                      className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      <Sparkles size={11} className="text-amber-400" />
+                      {aiData ? 'Full AI Modal' : 'Generate AI Insight'}
+                    </Button>
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Deep telemetry synthesis, target SKU selection, and copyable CLI commands are available via the AI advisor.
-              </p>
-            )}
+
+                  {aiData ? (
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2 text-xs">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-bold text-primary uppercase">
+                          {aiData.action}
+                          {aiData.target_sku ? ` ➔ ${aiData.target_sku}` : ''}
+                        </span>
+                        <span className="font-bold text-emerald-400">
+                          {money(aiData.estimated_monthly_savings)}/mo
+                        </span>
+                      </div>
+                      <p className="text-foreground/90 leading-relaxed">
+                        {aiData.justification}
+                      </p>
+                      {aiData.remediation_command && (
+                        <div className="rounded bg-zinc-950 p-2 font-mono text-[11px] text-zinc-200 overflow-x-auto">
+                          {aiData.remediation_command}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Deep telemetry synthesis, target SKU selection, and copyable CLI commands are available via the AI advisor.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           <div className="drawer-note"><Info size={15}/> Savings are estimates. Verify workload requirements before making changes.</div>
@@ -812,6 +869,7 @@ export function RecommendationsView() {
       onOpenChange={(op) => !op && setAiModalRec(null)}
       recommendation={aiModalRec}
       onApproveSuccess={handleAiApproveSuccess}
+      onGenerated={handleAiGenerated}
       onNotify={notify}
     />
   </div>;

@@ -277,10 +277,19 @@ export async function apiGetAIRecommendation(resourceId: string, findingId?: str
   });
 }
 
-export async function apiBatchGenerateAIRecommendations(limit: number = 25, provider?: string): Promise<AIBatchResult> {
+export async function apiBatchGenerateAIRecommendations(
+  limit: number = 15,
+  cloudProvider?: string,
+  datasetId?: string,
+  forceRefresh: boolean = false,
+  llmProvider?: string
+): Promise<AIBatchResult> {
   const params = new URLSearchParams();
   params.append('limit', String(limit));
-  if (provider) params.append('provider', provider);
+  if (cloudProvider && cloudProvider !== 'All') params.append('cloud_provider', cloudProvider.toLowerCase());
+  if (datasetId) params.append('dataset_id', datasetId);
+  if (forceRefresh) params.append('force_refresh', 'true');
+  if (llmProvider) params.append('provider', llmProvider);
   return request<AIBatchResult>(`/ai/batch-generate?${params.toString()}`, {
     method: 'POST'
   });
