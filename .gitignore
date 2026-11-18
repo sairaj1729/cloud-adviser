@@ -1,0 +1,36 @@
+# Environment variables and secrets
+.env
+.env.*
+*.env
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+backend/venv/
+ENV/
+env/
+
+# Node & Frontend Build Artifacts
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.nitro/
+frontend/.nitro/
+.output/
+frontend/.output/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
