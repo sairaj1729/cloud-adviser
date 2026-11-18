@@ -85,9 +85,18 @@ async def create_db_indexes():
         # rules: unique rule_id
         await db.rules.create_index("rule_id", unique=True)
 
-        # findings: user_id + resource_id + rule_id
+        # Drop old findings index if it lacked dataset_id
+        try:
+            indexes = await db.findings.index_information()
+            if "user_id_1_resource_id_1_rule_id_1" in indexes:
+                await db.findings.drop_index("user_id_1_resource_id_1_rule_id_1")
+                logger.info("Dropped legacy findings index 'user_id_1_resource_id_1_rule_id_1'")
+        except Exception as e:
+            logger.debug(f"Index drop check skipped: {e}")
+
+        # findings: user_id + dataset_id + resource_id + rule_id (unique per dataset)
         await db.findings.create_index(
-            [("user_id", 1), ("resource_id", 1), ("rule_id", 1)],
+            [("user_id", 1), ("dataset_id", 1), ("resource_id", 1), ("rule_id", 1)],
             unique=True
         )
     except Exception as e:

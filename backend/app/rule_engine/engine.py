@@ -13,11 +13,11 @@ class RuleEngine:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
-    async def evaluate_account(self, user_id: str, cloud_account_id: str) -> Dict[str, Any]:
+    async def evaluate_account(self, user_id: str, cloud_account_id: str, dataset_id: str = None) -> Dict[str, Any]:
         """
         Master evaluation pipeline:
         1. Fetch active rules from MongoDB `rules` collection.
-        2. Query normalized resources matching user_id & cloud_account_id.
+        2. Query normalized resources matching user_id & cloud_account_id (and dataset_id if provided).
         3. Evaluate conditions for matching resource types.
         4. Generate Evidence & calculate Savings.
         5. Upsert Finding in MongoDB `findings` collection.
@@ -28,6 +28,8 @@ class RuleEngine:
 
         # Fetch resources
         query = {"user_id": user_id}
+        if dataset_id:
+            query["dataset_id"] = dataset_id
         if cloud_account_id:
             matched = await self.db.resources.count_documents({"user_id": user_id, "cloud_account_id": cloud_account_id})
             if matched > 0:
@@ -42,13 +44,14 @@ class RuleEngine:
                     query["provider"] = acc["provider"].lower()
 
         res_cursor = self.db.resources.find(query)
-        resources = await res_cursor.to_list(length=10000)
+        resources = await res_cursor.to_list(length=20000)
 
         rules_evaluated_count = 0
         rule_matches_detected = 0
         upserted_finding_keys = set()
 
         for resource in resources:
+            res_dataset_id = dataset_id or resource.get("dataset_id")
             for rule in rules:
                 # Match provider and resource_type (with alias support)
                 if rule.get("provider", "").lower() != resource.get("provider", "").lower():
@@ -56,8 +59,8 @@ class RuleEngine:
                 rule_type = str(rule.get("resource_type", "")).lower()
                 res_type = str(resource.get("resource_type", "")).lower()
                 type_aliases = {
-                    "virtual_machine": {"virtual_machine", "compute_instance"},
-                    "compute_instance": {"virtual_machine", "compute_instance"},
+                    "virtual_machine": {"virtual_machine", "compute_instance", "kubernetes_cluster"},
+                    "compute_instance": {"virtual_machine", "compute_instance", "kubernetes_cluster"},
                     "database_instance": {"database_instance", "database", "cloud_sql_instance"},
                     "database": {"database_instance", "database", "cloud_sql_instance"},
                     "cloud_sql_instance": {"database_instance", "database", "cloud_sql_instance"},
@@ -90,6 +93,7 @@ class RuleEngine:
                     # Build Finding Document (without overwriting user-decided status)
                     finding_doc = {
                         "user_id": user_id,
+                        "dataset_id": res_dataset_id,
                         "cloud_account_id": cloud_account_id or resource.get("cloud_account_id"),
                         "rule_id": rule.get("rule_id"),
                         "resource_id": resource.get("resource_id"),
@@ -108,12 +112,16 @@ class RuleEngine:
                     }
 
                     # Upsert Finding in MongoDB (set fields, preserve existing custom status if already set)
+                    find_filter = {
+                        "user_id": user_id,
+                        "resource_id": resource.get("resource_id"),
+                        "rule_id": rule.get("rule_id")
+                    }
+                    if res_dataset_id:
+                        find_filter["dataset_id"] = res_dataset_id
+
                     await self.db.findings.update_one(
-                        {
-                            "user_id": user_id,
-                            "resource_id": resource.get("resource_id"),
-                            "rule_id": rule.get("rule_id")
-                        },
+                        find_filter,
                         {
                             "$set": finding_doc,
                             "$setOnInsert": {
@@ -126,15 +134,20 @@ class RuleEngine:
 
         # Determine actual distinct findings stored for this account
         acc_finding_query: Dict[str, Any] = {"user_id": user_id}
+        if dataset_id:
+            acc_finding_query["dataset_id"] = dataset_id
         if cloud_account_id:
             acc_finding_query["cloud_account_id"] = cloud_account_id
 
-        acc_findings = await self.db.findings.find(acc_finding_query).to_list(length=10000)
+        acc_findings = await self.db.findings.find(acc_finding_query).to_list(length=20000)
         if not acc_findings and query.get("provider"):
-            acc_findings = await self.db.findings.find({
+            fallback_q = {
                 "user_id": user_id,
                 "provider": query["provider"]
-            }).to_list(length=10000)
+            }
+            if dataset_id:
+                fallback_q["dataset_id"] = dataset_id
+            acc_findings = await self.db.findings.find(fallback_q).to_list(length=20000)
 
         actual_findings_count = len(acc_findings) if acc_findings else len(upserted_finding_keys)
         actual_monthly_savings = sum(float(f.get("savings", {}).get("monthly", 0.0) or 0.0) for f in acc_findings) if acc_findings else 0.0
@@ -149,11 +162,11 @@ class RuleEngine:
             "estimated_monthly_savings": round(actual_monthly_savings, 2)
         }
 
-    async def evaluate_all_for_user(self, user_id: str) -> Dict[str, Any]:
+    async def evaluate_all_for_user(self, user_id: str, dataset_id: str = None) -> Dict[str, Any]:
         """
         Evaluates all cloud accounts and resources for a user against active rules from db.rules:
         1. Fetch active rules from MongoDB `rules` collection.
-        2. Evaluate all user resources.
+        2. Evaluate all user resources for specified dataset_id.
         3. Remove/prune any findings whose rules were deleted or deactivated in MongoDB.
         4. Return summary metrics.
         """
@@ -161,34 +174,45 @@ class RuleEngine:
         cursor = self.db.rules.find({"status": "active"})
         active_rules = await cursor.to_list(length=200)
         active_rule_ids = [r["rule_id"] for r in active_rules]
-        logger.info(f"Evaluating {len(active_rules)} active rules from MongoDB for user {user_id}: {active_rule_ids}")
+        logger.info(f"Evaluating {len(active_rules)} active rules from MongoDB for user {user_id} (dataset: {dataset_id}): {active_rule_ids}")
 
         target_user_id = user_id
-        user_res_count = await self.db.resources.count_documents({"user_id": user_id})
+        user_check_query: Dict[str, Any] = {"user_id": user_id}
+        if dataset_id:
+            user_check_query["dataset_id"] = dataset_id
+        user_res_count = await self.db.resources.count_documents(user_check_query)
         if user_res_count == 0:
             demo_user = await self.db.users.find_one({"email": "jordan@acme.io"})
             if demo_user:
                 target_user_id = str(demo_user["_id"])
 
-        res_cursor = self.db.resources.find({"user_id": target_user_id})
-        resources = await res_cursor.to_list(length=10000)
-        if not resources:
+        res_query: Dict[str, Any] = {"user_id": target_user_id}
+        if dataset_id:
+            res_query["dataset_id"] = dataset_id
+
+        res_cursor = self.db.resources.find(res_query)
+        resources = await res_cursor.to_list(length=20000)
+        if not resources and dataset_id:
+            res_cursor = self.db.resources.find({"dataset_id": dataset_id})
+            resources = await res_cursor.to_list(length=20000)
+        elif not resources:
             res_cursor = self.db.resources.find({})
-            resources = await res_cursor.to_list(length=10000)
+            resources = await res_cursor.to_list(length=20000)
 
         rules_evaluated_count = 0
         rule_matches_detected = 0
         upserted_finding_keys = set()
 
         for resource in resources:
+            res_dataset_id = dataset_id or resource.get("dataset_id")
             for rule in active_rules:
                 if rule.get("provider", "").lower() != resource.get("provider", "").lower():
                     continue
                 rule_type = str(rule.get("resource_type", "")).lower()
                 res_type = str(resource.get("resource_type", "")).lower()
                 type_aliases = {
-                    "virtual_machine": {"virtual_machine", "compute_instance"},
-                    "compute_instance": {"virtual_machine", "compute_instance"},
+                    "virtual_machine": {"virtual_machine", "compute_instance", "kubernetes_cluster"},
+                    "compute_instance": {"virtual_machine", "compute_instance", "kubernetes_cluster"},
                     "database_instance": {"database_instance", "database", "cloud_sql_instance"},
                     "database": {"database_instance", "database", "cloud_sql_instance"},
                     "cloud_sql_instance": {"database_instance", "database", "cloud_sql_instance"},
@@ -216,6 +240,7 @@ class RuleEngine:
 
                     finding_doc = {
                         "user_id": user_id,
+                        "dataset_id": res_dataset_id,
                         "cloud_account_id": resource.get("cloud_account_id"),
                         "rule_id": rule.get("rule_id"),
                         "resource_id": resource.get("resource_id"),
@@ -233,12 +258,16 @@ class RuleEngine:
                         "updated_at": datetime.utcnow()
                     }
 
+                    find_filter = {
+                        "user_id": user_id,
+                        "resource_id": resource.get("resource_id"),
+                        "rule_id": rule.get("rule_id")
+                    }
+                    if res_dataset_id:
+                        find_filter["dataset_id"] = res_dataset_id
+
                     await self.db.findings.update_one(
-                        {
-                            "user_id": user_id,
-                            "resource_id": resource.get("resource_id"),
-                            "rule_id": rule.get("rule_id")
-                        },
+                        find_filter,
                         {
                             "$set": finding_doc,
                             "$setOnInsert": {
@@ -251,25 +280,33 @@ class RuleEngine:
 
         # Clean up stale findings for rules that are no longer active in MongoDB
         if active_rule_ids:
-            deleted_stale = await self.db.findings.delete_many({
+            stale_q: Dict[str, Any] = {
                 "user_id": user_id,
                 "rule_id": {"$nin": active_rule_ids}
-            })
+            }
+            if dataset_id:
+                stale_q["dataset_id"] = dataset_id
+            deleted_stale = await self.db.findings.delete_many(stale_q)
             if deleted_stale.deleted_count > 0:
                 logger.info(f"Pruned {deleted_stale.deleted_count} stale findings from inactive/removed rules.")
 
-        # Query actual distinct findings stored in db.findings for this user
-        stored_findings_cursor = self.db.findings.find({"user_id": user_id})
-        stored_findings = await stored_findings_cursor.to_list(length=10000)
+        # Query actual distinct findings stored in db.findings for this user & dataset
+        stored_q: Dict[str, Any] = {"user_id": user_id}
+        if dataset_id:
+            stored_q["dataset_id"] = dataset_id
+
+        stored_findings_cursor = self.db.findings.find(stored_q)
+        stored_findings = await stored_findings_cursor.to_list(length=20000)
         if not stored_findings and target_user_id != user_id:
-            stored_findings_cursor = self.db.findings.find({"user_id": target_user_id})
-            stored_findings = await stored_findings_cursor.to_list(length=10000)
+            stored_q["user_id"] = target_user_id
+            stored_findings_cursor = self.db.findings.find(stored_q)
+            stored_findings = await stored_findings_cursor.to_list(length=20000)
 
         stored_findings_count = len(stored_findings) if stored_findings else len(upserted_finding_keys)
         actual_monthly_savings = sum(float(f.get("savings", {}).get("monthly", 0.0) or 0.0) for f in stored_findings) if stored_findings else 0.0
 
         logger.info(
-            f"Rule evaluation completed for user {user_id}: "
+            f"Rule evaluation completed for user {user_id} (dataset: {dataset_id}): "
             f"{stored_findings_count} findings stored in db.findings (${actual_monthly_savings:.2f}/mo potential savings, "
             f"{rule_matches_detected} condition matches across snapshots)"
         )

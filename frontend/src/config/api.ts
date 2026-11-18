@@ -1,5 +1,8 @@
 // Centralized API configuration and client for Cloud Advisor FastAPI V1 Backend
-export const API_BASE_URL = 'http://localhost:8000/api';
+export const API_BASE_URL = 
+  (typeof window !== 'undefined' && (window as any).__CLOUDADVISOR_API_URL__) ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
+  'http://localhost:8000/api';
 
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -95,6 +98,8 @@ export async function apiCreateAccount(payload: {
   azure_client_id?: string | undefined;
   azure_client_secret?: string | undefined;
   gcp_project_id?: string | undefined;
+  gcp_service_account_key?: string | undefined;
+  gcp_billing_table?: string | undefined;
 }) {
   return request<any>('/accounts', {
     method: 'POST',
@@ -156,8 +161,34 @@ export async function apiDeleteAccount(accountId: string) {
 }
 
 // Dashboard & Analytics API Methods
-export async function apiGetDashboardSummary() {
+export type DatasetMeta = {
+  id: string;
+  name: string;
+  domain: string;
+  description: string;
+  file: string;
+  item_count: number;
+  icon: string;
+  is_active: boolean;
+  loaded_resources: number;
+  generated_findings: number;
+};
+
+export async function apiListDatasets() {
+  return request<DatasetMeta[]>('/dashboard/datasets');
+}
+
+export async function apiSwitchDataset(datasetId: string) {
+  return request<any>('/dashboard/datasets/switch', {
+    method: 'POST',
+    body: JSON.stringify({ dataset_id: datasetId }),
+  });
+}
+
+export async function apiGetDashboardSummary(datasetId?: string) {
+  const query = datasetId ? `?dataset=${encodeURIComponent(datasetId)}` : '';
   return request<{
+    active_dataset_id?: string;
     total_cloud_accounts: number;
     total_resources: number;
     total_findings: number;
@@ -169,15 +200,19 @@ export async function apiGetDashboardSummary() {
     savings_by_provider: { aws: number; azure: number; gcp: number };
     cost_by_provider: { aws: number; azure: number; gcp: number };
     top_services: Array<{ name: string; cost: number; count: number }>;
-  }>('/dashboard/summary');
+  }>(`/dashboard/summary${query}`);
 }
 
-export async function apiGetDashboardAnalytics(refresh: boolean = true) {
-  return request<any>(`/dashboard/analytics?refresh=${refresh}`);
+export async function apiGetDashboardAnalytics(refresh: boolean = true, datasetId?: string) {
+  const params = new URLSearchParams();
+  params.append('refresh', String(refresh));
+  if (datasetId) params.append('dataset', datasetId);
+  return request<any>(`/dashboard/analytics?${params.toString()}`);
 }
 
-export async function apiRefreshDashboardAnalytics() {
-  return request<any>('/dashboard/refresh', { method: 'POST' });
+export async function apiRefreshDashboardAnalytics(datasetId?: string) {
+  const query = datasetId ? `?dataset=${encodeURIComponent(datasetId)}` : '';
+  return request<any>(`/dashboard/refresh${query}`, { method: 'POST' });
 }
 
 export async function apiGenerateFindings() {
@@ -203,4 +238,62 @@ export async function apiUpdateFindingStatus(findingId: string, status: string, 
     body: JSON.stringify({ status, notes })
   });
 }
+
+// AI Recommendations API Methods
+export type AIRecommendationData = {
+  resource_id: string;
+  resource_name?: string;
+  provider: string;
+  action: 'RIGHTSIZE' | 'STOP' | 'TERMINATE' | 'STORAGE_DOWNGRADE' | 'NO_ACTION' | string;
+  target_sku?: string | null;
+  current_sku?: string | null;
+  current_monthly_cost: number;
+  estimated_monthly_savings: number;
+  estimated_savings_percentage: number;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+  justification: string;
+  remediation_steps: string[];
+  remediation_command?: string | null;
+  llm_provider_used: string;
+  llm_model_used: string;
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | string;
+  created_at: string;
+};
+
+export type AIBatchResult = {
+  total_findings_analyzed: number;
+  recommendations_generated: number;
+  total_estimated_monthly_savings: number;
+  items: AIRecommendationData[];
+};
+
+export async function apiGetAIRecommendation(resourceId: string, findingId?: string, provider?: string): Promise<AIRecommendationData> {
+  const params = new URLSearchParams();
+  if (findingId) params.append('finding_id', findingId);
+  if (provider) params.append('provider', provider);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return request<AIRecommendationData>(`/ai/recommend/${encodeURIComponent(resourceId)}${query}`, {
+    method: 'POST'
+  });
+}
+
+export async function apiBatchGenerateAIRecommendations(limit: number = 25, provider?: string): Promise<AIBatchResult> {
+  const params = new URLSearchParams();
+  params.append('limit', String(limit));
+  if (provider) params.append('provider', provider);
+  return request<AIBatchResult>(`/ai/batch-generate?${params.toString()}`, {
+    method: 'POST'
+  });
+}
+
+export async function apiListAIRecommendations(limit: number = 50): Promise<AIRecommendationData[]> {
+  return request<AIRecommendationData[]>(`/ai/recommendations?limit=${limit}`);
+}
+
+export async function apiUpdateAIRecommendationStatus(resourceId: string, newStatus: string) {
+  return request<any>(`/ai/recommendations/${encodeURIComponent(resourceId)}/status?new_status=${encodeURIComponent(newStatus)}`, {
+    method: 'PATCH'
+  });
+}
+
 

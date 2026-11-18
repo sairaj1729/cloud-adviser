@@ -4670,7 +4670,22 @@ export const resources: Resource[] = [
   }
 ];
 
-export type Recommendation = { id: string; title: string; provider: Cloud; resource: string; problem: string; evidence: string; savings: number; priority: 'High' | 'Medium' | 'Low'; confidence: number; action: string; cost: number };
+export type Recommendation = { 
+  id: string; 
+  title: string; 
+  provider: Cloud; 
+  resource: string; 
+  resource_id?: string;
+  problem: string; 
+  evidence: string; 
+  savings: number; 
+  priority: 'High' | 'Medium' | 'Low'; 
+  confidence: number; 
+  action: string; 
+  cost: number;
+  status?: string;
+  ai_recommendation?: any;
+};
 export const recommendations: Recommendation[] = [
   {
     "id": "rec1",

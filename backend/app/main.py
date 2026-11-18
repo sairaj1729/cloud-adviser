@@ -8,7 +8,7 @@ from fastapi.exceptions import HTTPException
 from app.core.config import settings
 from app.db.mongodb import connect_to_mongo, close_mongo_connection, db_manager
 from app.rule_engine.registry import RuleRegistry
-from app.api import auth, accounts, resources, rules, findings, dashboard
+from app.api import auth, accounts, resources, rules, findings, dashboard, ai_recommendations
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,7 @@ app.include_router(resources.router, prefix=settings.API_V1_STR)
 app.include_router(rules.router, prefix=settings.API_V1_STR)
 app.include_router(findings.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
+app.include_router(ai_recommendations.router, prefix=settings.API_V1_STR)
 
 from fastapi.responses import JSONResponse, RedirectResponse
 

@@ -23,8 +23,31 @@ class Settings(BaseSettings):
 
     GCP_PROJECT_ID: str = ""
 
+    # LLM Settings (Pluggable Provider Architecture)
+    LLM_PROVIDER: str = "auto"  # "auto", "gemini", "openrouter", "groq", "openai", "ollama", "mock"
+    LLM_MODEL: str = ""
+
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "google/gemini-2.5-flash"
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"
+
+
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "backend/.env", "../.env"],
         env_file_encoding="utf-8",
         extra="ignore"
     )

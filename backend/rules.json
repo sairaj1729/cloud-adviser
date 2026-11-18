@@ -2,7 +2,7 @@
     {
         "rule_id": "AWS-EC2-001",
         "name": "Underutilized EC2 Instance",
-        "description": "Flags a running EC2 instance with low average CPU utilization below 15%.",
+        "description": "Flags a running EC2 instance or container compute node with low average CPU utilization below 25%.",
         "provider": "aws",
         "resource_type": "compute_instance",
         "required_data": [
@@ -18,7 +18,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 15.0
+                    "threshold": 25.0
                 },
                 {
                     "field": "metrics.cpu_average",
@@ -152,7 +152,7 @@
     {
         "rule_id": "AWS-RDS-001",
         "name": "Underutilized RDS Database",
-        "description": "Flags a running RDS database instance with low average CPU utilization below 20%.",
+        "description": "Flags a running RDS database instance with low average CPU utilization below 35%.",
         "provider": "aws",
         "resource_type": "database",
         "required_data": [
@@ -168,7 +168,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 20.0
+                    "threshold": 35.0
                 },
                 {
                     "field": "metrics.cpu_average",
@@ -233,7 +233,7 @@
     {
         "rule_id": "AZURE-VM-001",
         "name": "Underutilized Azure Virtual Machine",
-        "description": "Flags a running Azure virtual machine with low average CPU utilization below 15%.",
+        "description": "Flags a running Azure virtual machine or container compute node with low average CPU utilization below 25%.",
         "provider": "azure",
         "resource_type": "compute_instance",
         "required_data": [
@@ -249,7 +249,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 15.0
+                    "threshold": 25.0
                 },
                 {
                     "field": "metrics.cpu_average",
@@ -383,7 +383,7 @@
     {
         "rule_id": "AZURE-SQL-001",
         "name": "Underutilized Azure SQL Database",
-        "description": "Flags a running Azure SQL database with low average CPU utilization below 15%.",
+        "description": "Flags a running Azure SQL database with low average CPU utilization below 35%.",
         "provider": "azure",
         "resource_type": "database",
         "required_data": [
@@ -399,7 +399,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 15.0
+                    "threshold": 35.0
                 },
                 {
                     "field": "metrics.cpu_average",
@@ -464,7 +464,7 @@
     {
         "rule_id": "GCP-VM-001",
         "name": "Underutilized Compute Engine VM",
-        "description": "Flags a running Compute Engine VM with low average CPU utilization below 15%.",
+        "description": "Flags a running Compute Engine VM or container compute node with low average CPU utilization below 25%.",
         "provider": "gcp",
         "resource_type": "compute_instance",
         "required_data": [
@@ -480,7 +480,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 15.0
+                    "threshold": 25.0
                 },
                 {
                     "field": "metrics.cpu_average",
@@ -614,7 +614,7 @@
     {
         "rule_id": "GCP-SQL-001",
         "name": "Underutilized Cloud SQL Instance",
-        "description": "Flags a running Cloud SQL instance with low average CPU utilization below 20%.",
+        "description": "Flags a running Cloud SQL instance with low average CPU utilization below 35%.",
         "provider": "gcp",
         "resource_type": "database",
         "required_data": [
@@ -630,7 +630,7 @@
                 {
                     "field": "metrics.cpu_average",
                     "operator": "lt",
-                    "threshold": 20.0
+                    "threshold": 35.0
                 },
                 {
                     "field": "metrics.cpu_average",

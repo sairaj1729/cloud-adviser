@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 import { ConnectionsPanel } from './Connections';
 import { ApprovalDrawer, StatusPill } from './Approvals';
 import { initialAudit, type ApprovalStatus, type AuditEvent } from '@/mockData/approvals';
-import { apiUpdateFindingStatus } from '@/config/api';
+import { apiUpdateFindingStatus, apiBatchGenerateAIRecommendations } from '@/config/api';
+import { AiRecommendationModal } from './AiRecommendationModal';
 
 function Empty({text='No results match your filters.'}: {text?:string}) {return <div className="empty-state"><Search size={25}/><strong>Nothing to show</strong><span>{text}</span></div>}
 function TableControls({query,setQuery,placeholder='Search resources...',filter,setFilter,filters}: {query:string;setQuery:(s:string)=>void;placeholder?:string;filter:string;setFilter:(s:string)=>void;filters:string[]}) {return <div className="table-controls"><div className="search-field"><Search size={15}/><Input value={query} onChange={e=>setQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder}/></div><Select value={filter} onValueChange={setFilter}><SelectTrigger className="filter-select"><Filter size={14}/><SelectValue/></SelectTrigger><SelectContent>{filters.map(f=><SelectItem value={f} key={f}>{f==='All'?'All providers':f}</SelectItem>)}</SelectContent></Select></div>}
@@ -517,135 +518,303 @@ export function UtilizationView() {
  </div>;
 }
 export function RecommendationsView() {
- const {providerMeta,recommendations}=useDataset();
- const {cloud,setCloud,notify,isFetching}=useCloudApp();
- const [filter,setFilter]=useState<string>(cloud);
- const [priority,setPriority]=useState('All');
- const [selected,setSelected]=useState<Recommendation|null>(null);
- const [reviewing,setReviewing]=useState<Recommendation|null>(null);
- const [tab,setTab]=useState<'All'|ApprovalStatus>('All');
- const [statuses,setStatuses]=useState<Record<string,ApprovalStatus>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-decisions')??'{}')}catch{}return {}});
- const [audits,setAudits]=useState<Record<string,AuditEvent[]>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-audits')??'{}')}catch{}return {}});
+  const {providerMeta,recommendations}=useDataset();
+  const {cloud,setCloud,notify,isFetching}=useCloudApp();
+  const [filter,setFilter]=useState<string>(cloud);
+  const [priority,setPriority]=useState('All');
+  const [selected,setSelected]=useState<Recommendation|null>(null);
+  const [reviewing,setReviewing]=useState<Recommendation|null>(null);
+  const [tab,setTab]=useState<'All'|ApprovalStatus>('All');
+  const [statuses,setStatuses]=useState<Record<string,ApprovalStatus>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-decisions')??'{}')}catch{}return {}});
+  const [audits,setAudits]=useState<Record<string,AuditEvent[]>>(()=>{try{if(typeof window!=='undefined')return JSON.parse(localStorage.getItem('cloud-advisor-audits')??'{}')}catch{}return {}});
 
- useEffect(() => {
-   setFilter(cloud);
- }, [cloud]);
+  // AI Recommendation State
+  const [aiModalRec, setAiModalRec] = useState<Recommendation | null>(null);
+  const [batchAnalyzing, setBatchAnalyzing] = useState<boolean>(false);
+  const [aiOverrides, setAiOverrides] = useState<Record<string, any>>({});
 
- if (isFetching) return <RecommendationsViewSkeleton cloud={cloud}/>;
+  useEffect(() => {
+    setFilter(cloud);
+  }, [cloud]);
 
- const onFilterChange = (v: string) => {
-   setFilter(v);
-   if (v === 'AWS' || v === 'Azure' || v === 'GCP') {
-     setCloud(v as CloudType);
-   }
- };
+  if (isFetching) return <RecommendationsViewSkeleton cloud={cloud}/>;
 
- const statusOf=(id:string)=>statuses[id]??'Pending Review';
- const auditOf=(r:Recommendation)=>audits[r.id]??initialAudit(r);
- const decide=(r:Recommendation,s:ApprovalStatus,text:string)=>{
-   const at=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
-   const nextStatuses={...statuses,[r.id]:s};
-   const nextAudits={...audits,[r.id]:[...auditOf(r),{at,actor:'Jordan Davis',text}]};
-   setStatuses(nextStatuses);
-   setAudits(nextAudits);
-   try{
-     localStorage.setItem('cloud-advisor-decisions',JSON.stringify(nextStatuses));
-     localStorage.setItem('cloud-advisor-audits',JSON.stringify(nextAudits));
-   }catch{}
-   apiUpdateFindingStatus(r.id,s.toLowerCase(),text).catch(e=>console.warn('Backend status update warning:',e));
-   setReviewing(null);
-   notify(`${r.title}: ${s}`);
- };
+  const onFilterChange = (v: string) => {
+    setFilter(v);
+    if (v === 'AWS' || v === 'Azure' || v === 'GCP') {
+      setCloud(v as CloudType);
+    }
+  };
 
- const cloudItems = recommendations.filter(r => (filter === 'All' ? true : r.provider === filter));
- const rows = cloudItems.filter(r => (priority === 'All' || r.priority === priority) && (tab === 'All' || statusOf(r.id) === tab));
- const pending = cloudItems.filter(r => statusOf(r.id) === 'Pending Review');
- const total = cloudItems.reduce((n,r) => n + r.savings, 0);
+  const statusOf=(id:string)=>statuses[id]??'Pending Review';
+  const auditOf=(r:Recommendation)=>audits[r.id]??initialAudit(r);
+  const decide=(r:Recommendation,s:ApprovalStatus,text:string)=>{
+    const at=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+    const nextStatuses={...statuses,[r.id]:s};
+    const nextAudits={...audits,[r.id]:[...auditOf(r),{at,actor:'Jordan Davis',text}]};
+    setStatuses(nextStatuses);
+    setAudits(nextAudits);
+    try{
+      localStorage.setItem('cloud-advisor-decisions',JSON.stringify(nextStatuses));
+      localStorage.setItem('cloud-advisor-audits',JSON.stringify(nextAudits));
+    }catch{}
+    apiUpdateFindingStatus(r.id,s.toLowerCase(),text).catch(e=>console.warn('Backend status update warning:',e));
+    setReviewing(null);
+    notify(`${r.title}: ${s}`);
+  };
 
- return <div className="view-stack">
-   <div className="rec-feature">
-     <div className="rec-feature-content">
-       <div className="rec-feature-eyebrow"><Sparkles size={14}/> {filter === 'All' ? 'MULTI-CLOUD' : filter} OPTIMIZATION OUTLOOK</div>
-       <strong>{money(total)}<span>/mo</span></strong>
-       <p>in potential savings across your {filter === 'All' ? 'cloud' : filter} infrastructure</p>
-       <div className="rec-feature-meta">
-         <span><Check size={14}/> {cloudItems.length} actionable {filter === 'All' ? '' : filter + ' '}recommendations</span>
-         <span><ShieldCheck size={14}/> Evidence-backed insights</span>
-       </div>
-     </div>
-     <div className="rec-feature-art" aria-hidden="true">
-       <div className="orbit orbit-one"/>
-       <div className="orbit orbit-two"/>
-       <div className="orbit orbit-three"/>
-       <span className="orbit-center"><TrendingDown size={38}/></span>
-     </div>
-   </div>
+  const handleAiApproveSuccess = (recId: string, updatedAiData: any) => {
+    setAiOverrides(prev => ({ ...prev, [recId]: updatedAiData }));
+    const rec = recommendations.find(r => r.id === recId);
+    if (rec) {
+      decide(
+        rec,
+        'Approved',
+        `AI Recommended Action Approved: ${updatedAiData.action} (${updatedAiData.target_sku || 'Optimized'})`
+      );
+    }
+  };
 
-   <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Approval status">
-     {(['All','Pending Review','Approved','Scheduled','Snoozed','Rejected'] as const).map(t => {
-       const n = t === 'All' ? cloudItems.length : cloudItems.filter(r => statusOf(r.id) === t).length;
-       return <Button key={t} role="tab" aria-selected={tab===t} size="sm" variant={tab===t?'secondary':'ghost'} onClick={()=>setTab(t)}>
-         {t === 'All' ? 'All' : t} <span className="text-muted-foreground">{n}</span>
-       </Button>;
-     })}
-     <span className="ml-auto text-sm text-muted-foreground">Awaiting review: <strong className="text-success">{money(pending.reduce((a,b)=>a+b.savings,0))}/mo</strong></span>
-   </div>
+  const handleBatchAiAnalysis = async () => {
+    setBatchAnalyzing(true);
+    try {
+      notify('Starting AI analysis across all open recommendations via active LLM...');
+      const res = await apiBatchGenerateAIRecommendations(25);
+      const newOverrides: Record<string, any> = {};
+      for (const item of res.items) {
+        const match = recommendations.find(r => 
+          (r.resource_id === item.resource_id) || 
+          (r.resource === item.resource_id) || 
+          (r.resource === item.resource_name)
+        );
+        if (match) {
+          newOverrides[match.id] = item;
+        }
+      }
+      setAiOverrides(prev => ({ ...prev, ...newOverrides }));
+      notify(`AI analysis complete: ${res.recommendations_generated} recommendations synthesized, saving ${money(res.total_estimated_monthly_savings)}/mo!`);
+    } catch (err: any) {
+      console.error('Batch AI analysis error:', err);
+      notify(`AI batch error: ${err?.message || 'Failed to complete fleet analysis'}`);
+    } finally {
+      setBatchAnalyzing(false);
+    }
+  };
 
-   <div className="rec-filter-row">
-     <div>
-       <h2>{filter === 'All' ? 'All' : filter} recommendations</h2>
-       <p>Prioritized opportunities to reduce {filter === 'All' ? 'cloud' : filter} spend without compromising performance.</p>
-     </div>
-     <div className="flex gap-2">
-       <Select value={filter} onValueChange={onFilterChange}>
-         <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
-         <SelectContent>{['All','AWS','Azure','GCP'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All providers':v}</SelectItem>)}</SelectContent>
-       </Select>
-       <Select value={priority} onValueChange={setPriority}>
-         <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
-         <SelectContent>{['All','High','Medium','Low'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All priorities':`${v} priority`}</SelectItem>)}</SelectContent>
-       </Select>
-     </div>
-   </div>
+  const cloudItems = recommendations.filter(r => (filter === 'All' ? true : r.provider === filter));
+  const rows = cloudItems.filter(r => (priority === 'All' || r.priority === priority) && (tab === 'All' || statusOf(r.id) === tab));
+  const pending = cloudItems.filter(r => statusOf(r.id) === 'Pending Review');
+  const total = cloudItems.reduce((n,r) => n + r.savings, 0);
 
-   <div className="recommendations-grid">
-     {rows.map(r => <article className="surface recommendation-card" key={r.id}>
-       <div className="rec-card-top">
-         <div className="rec-icon"><Lightbulb size={19}/></div>
-         <span className="flex gap-1.5 items-center"><StatusPill status={statusOf(r.id)}/><span className={cn('priority-pill',`priority-${r.priority.toLowerCase()}`)}>{r.priority} priority</span></span>
-       </div>
-       <h3>{r.title}</h3>
-       <div className="rec-resource"><ProviderBadge provider={r.provider}/><span>{r.resource}</span></div>
-       <p className="rec-problem">{r.problem}</p>
-       <div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div>
-       <div className="rec-card-bottom">
-         <div><small>POTENTIAL SAVINGS</small><strong>{money(r.savings)}<span>/mo</span></strong></div>
-         <div className="confidence"><small>CONFIDENCE</small><strong>{r.confidence}%</strong></div>
-       </div>
-       <div className="rec-actions">
-         <Button variant="outline" onClick={()=>setSelected(r)}>View details <ArrowRight size={14}/></Button>
-         <Button variant="ghost" onClick={()=>setReviewing(r)}>Review</Button>
-       </div>
-     </article>)}
-     {rows.length===0&&<Empty text={`No recommendations found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
-   </div>
+  return <div className="view-stack">
+    <div className="rec-feature">
+      <div className="rec-feature-content">
+        <div className="rec-feature-eyebrow"><Sparkles size={14}/> {filter === 'All' ? 'MULTI-CLOUD' : filter} OPTIMIZATION OUTLOOK</div>
+        <strong>{money(total)}<span>/mo</span></strong>
+        <p>in potential savings across your {filter === 'All' ? 'cloud' : filter} infrastructure</p>
+        <div className="rec-feature-meta">
+          <span><Check size={14}/> {cloudItems.length} actionable {filter === 'All' ? '' : filter + ' '}recommendations</span>
+          <span><ShieldCheck size={14}/> Evidence-backed insights</span>
+        </div>
+      </div>
+      <div className="rec-feature-art" aria-hidden="true">
+        <div className="orbit orbit-one"/>
+        <div className="orbit orbit-two"/>
+        <div className="orbit orbit-three"/>
+        <span className="orbit-center"><TrendingDown size={38}/></span>
+      </div>
+    </div>
 
-   <Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}>
-     <SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]">
-       <SheetHeader><div className="drawer-kicker">OPTIMIZATION OPPORTUNITY</div><SheetTitle>{selected?.title}</SheetTitle><SheetDescription>{selected?.resource} · {selected?.provider}</SheetDescription></SheetHeader>
-       {selected&&<div className="drawer-body">
-         <div className="flex gap-2"><span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span><span className="status-pill status-muted">{selected.confidence}% confidence</span></div>
-         <div className="drawer-metrics"><div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div><div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(selected.savings)}</strong></div></div>
-         <div className="drawer-section"><h3>Why this was detected</h3><p>{selected.problem}</p></div>
-         <div className="drawer-section"><h3>Evidence</h3><p>{selected.evidence}</p></div>
-         <div className="drawer-section"><h3>Suggested action</h3><p>{selected.action}</p></div>
-         <div className="drawer-note"><Info size={15}/> Savings are estimates. Verify workload requirements before making changes.</div>
-         <Button className="w-full" onClick={()=>{setReviewing(selected);setSelected(null)}}>Review & decide <ArrowRight size={15}/></Button>
-       </div>}
-     </SheetContent>
-   </Sheet>
-   <ApprovalDrawer item={reviewing} status={reviewing?statusOf(reviewing.id):'Pending Review'} audit={reviewing?auditOf(reviewing):[]} onClose={()=>setReviewing(null)} onDecision={(st,t)=>reviewing&&decide(reviewing,st,t)}/>
- </div>;
+    <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Approval status">
+      {(['All','Pending Review','Approved','Scheduled','Snoozed','Rejected'] as const).map(t => {
+        const n = t === 'All' ? cloudItems.length : cloudItems.filter(r => statusOf(r.id) === t).length;
+        return <Button key={t} role="tab" aria-selected={tab===t} size="sm" variant={tab===t?'secondary':'ghost'} onClick={()=>setTab(t)}>
+          {t === 'All' ? 'All' : t} <span className="text-muted-foreground">{n}</span>
+        </Button>;
+      })}
+      <span className="ml-auto text-sm text-muted-foreground">Awaiting review: <strong className="text-success">{money(pending.reduce((a,b)=>a+b.savings,0))}/mo</strong></span>
+    </div>
+
+    <div className="rec-filter-row flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2>{filter === 'All' ? 'All' : filter} recommendations</h2>
+        <p>Prioritized opportunities to reduce {filter === 'All' ? 'cloud' : filter} spend without compromising performance.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={batchAnalyzing}
+          onClick={handleBatchAiAnalysis}
+          className="h-9 gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 text-xs font-semibold shadow-sm"
+          title="Run AI Recommendation analysis on all open findings using active LLM (Gemini 2.5 Flash / Groq)"
+        >
+          {batchAnalyzing ? (
+            <RefreshCw size={13} className="animate-spin text-primary" />
+          ) : (
+            <Sparkles size={13} className="text-amber-400 animate-pulse" />
+          )}
+          <span>{batchAnalyzing ? 'Analyzing Fleet...' : '✨ Run AI Fleet Analysis'}</span>
+        </Button>
+
+        <Select value={filter} onValueChange={onFilterChange}>
+          <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
+          <SelectContent>{['All','AWS','Azure','GCP'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All providers':v}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="filter-select"><SelectValue/></SelectTrigger>
+          <SelectContent>{['All','High','Medium','Low'].map(v=><SelectItem key={v} value={v}>{v==='All'?'All priorities':`${v} priority`}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <div className="recommendations-grid">
+      {rows.map(r => {
+        const aiInfo = aiOverrides[r.id] || r.ai_recommendation;
+
+        return (
+          <article className="surface recommendation-card" key={r.id}>
+            <div className="rec-card-top">
+              <div className="rec-icon"><Lightbulb size={19}/></div>
+              <span className="flex gap-1.5 items-center">
+                <StatusPill status={statusOf(r.id)}/>
+                <span className={cn('priority-pill',`priority-${r.priority.toLowerCase()}`)}>{r.priority} priority</span>
+              </span>
+            </div>
+
+            {aiInfo && (
+              <div className="flex items-center justify-between text-[11px] font-mono px-2.5 py-1 rounded bg-primary/10 border border-primary/20 text-primary">
+                <span className="flex items-center gap-1 font-bold">
+                  <Sparkles size={11} className="text-amber-400 shrink-0" />
+                  AI: {aiInfo.action} {aiInfo.target_sku ? `➔ ${aiInfo.target_sku}` : ''}
+                </span>
+                <span className="text-emerald-400 font-bold">
+                  {money(aiInfo.estimated_monthly_savings)}/mo
+                </span>
+              </div>
+            )}
+
+            <h3>{r.title}</h3>
+            <div className="rec-resource"><ProviderBadge provider={r.provider}/><span>{r.resource}</span></div>
+            <p className="rec-problem">{r.problem}</p>
+            <div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div>
+            <div className="rec-card-bottom">
+              <div><small>POTENTIAL SAVINGS</small><strong>{money(r.savings)}<span>/mo</span></strong></div>
+              <div className="confidence"><small>CONFIDENCE</small><strong>{r.confidence}%</strong></div>
+            </div>
+            <div className="rec-actions flex items-center gap-1.5 pt-2">
+              <Button variant="outline" size="sm" onClick={()=>setSelected(r)}>Details</Button>
+              <Button variant="ghost" size="sm" onClick={()=>setReviewing(r)}>Review</Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setAiModalRec(aiInfo ? { ...r, ai_recommendation: aiInfo } : r)}
+                className="gap-1.5 bg-primary text-primary-foreground text-xs font-semibold shadow-sm ml-auto hover:bg-primary/90"
+                title="Open deep AI analysis modal"
+              >
+                <Sparkles size={13} className="text-amber-300 animate-pulse" />
+                <span>{aiInfo ? 'AI Insight' : 'Analyze'}</span>
+              </Button>
+            </div>
+          </article>
+        );
+      })}
+      {rows.length===0&&<Empty text={`No recommendations found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
+    </div>
+
+    {/* Detail Sheet with Embedded AI Breakdown */}
+    <Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}>
+      <SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]">
+        <SheetHeader>
+          <div className="drawer-kicker">OPTIMIZATION OPPORTUNITY</div>
+          <SheetTitle>{selected?.title}</SheetTitle>
+          <SheetDescription>{selected?.resource} · {selected?.provider}</SheetDescription>
+        </SheetHeader>
+        {selected&&<div className="drawer-body space-y-4">
+          <div className="flex gap-2">
+            <span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span>
+            <span className="status-pill status-muted">{selected.confidence}% confidence</span>
+          </div>
+          <div className="drawer-metrics">
+            <div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div>
+            <div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(selected.savings)}</strong></div>
+          </div>
+          <div className="drawer-section"><h3>Why this was detected</h3><p>{selected.problem}</p></div>
+          <div className="drawer-section"><h3>Evidence</h3><p>{selected.evidence}</p></div>
+          <div className="drawer-section"><h3>Suggested action</h3><p>{selected.action}</p></div>
+
+          {/* AI Advisor Section inside Drawer */}
+          <div className="drawer-section border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <Sparkles size={14} className="text-primary" /> AI FinOps Advisor
+              </h3>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const aiData = aiOverrides[selected.id] || selected.ai_recommendation;
+                  setAiModalRec(aiData ? { ...selected, ai_recommendation: aiData } : selected);
+                  setSelected(null);
+                }}
+                className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Sparkles size={11} className="text-amber-400" />
+                {(aiOverrides[selected.id] || selected.ai_recommendation) ? 'Full AI Modal' : 'Generate AI Insight'}
+              </Button>
+            </div>
+
+            {(aiOverrides[selected.id] || selected.ai_recommendation) ? (
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between font-mono">
+                  <span className="font-bold text-primary uppercase">
+                    {(aiOverrides[selected.id] || selected.ai_recommendation).action}
+                    {(aiOverrides[selected.id] || selected.ai_recommendation).target_sku ? ` ➔ ${(aiOverrides[selected.id] || selected.ai_recommendation).target_sku}` : ''}
+                  </span>
+                  <span className="font-bold text-emerald-400">
+                    {money((aiOverrides[selected.id] || selected.ai_recommendation).estimated_monthly_savings)}/mo
+                  </span>
+                </div>
+                <p className="text-foreground/90 leading-relaxed">
+                  {(aiOverrides[selected.id] || selected.ai_recommendation).justification}
+                </p>
+                {(aiOverrides[selected.id] || selected.ai_recommendation).remediation_command && (
+                  <div className="rounded bg-zinc-950 p-2 font-mono text-[11px] text-zinc-200 overflow-x-auto">
+                    {(aiOverrides[selected.id] || selected.ai_recommendation).remediation_command}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Deep telemetry synthesis, target SKU selection, and copyable CLI commands are available via the AI advisor.
+              </p>
+            )}
+          </div>
+
+          <div className="drawer-note"><Info size={15}/> Savings are estimates. Verify workload requirements before making changes.</div>
+          <Button className="w-full" onClick={()=>{setReviewing(selected);setSelected(null)}}>Review & decide <ArrowRight size={15}/></Button>
+        </div>}
+      </SheetContent>
+    </Sheet>
+
+    {/* Approval Drawer */}
+    <ApprovalDrawer 
+      item={reviewing} 
+      status={reviewing?statusOf(reviewing.id):'Pending Review'} 
+      audit={reviewing?auditOf(reviewing):[]} 
+      onClose={()=>setReviewing(null)} 
+      onDecision={(st,t)=>reviewing&&decide(reviewing,st,t)}
+    />
+
+    {/* AI Recommendation Modal */}
+    <AiRecommendationModal
+      open={!!aiModalRec}
+      onOpenChange={(op) => !op && setAiModalRec(null)}
+      recommendation={aiModalRec}
+      onApproveSuccess={handleAiApproveSuccess}
+      onNotify={notify}
+    />
+  </div>;
 }
 export function AccountView() {
   const { cloud, setCloud, notify, theme, setTheme, user } = useCloudApp();

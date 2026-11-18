@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: cloud_advisor_mongodb_dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=cloud_advisor
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - cloud_advisor_dev_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloud_advisor_backend_dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=cloud_advisor
+      - SYNTHETIC_DATA_DIR=/app/synthetic data
+      - SECRET_KEY=super_secret_jwt_key_change_in_production_12345
+      - CORS_ORIGINS=*
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/rules.json:/app/rules.json
+      - "./synthetic data:/app/synthetic data:ro"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      - mongodb
+    networks:
+      - cloud_advisor_dev_net
+
+  frontend:
+    image: node:20-alpine
+    container_name: cloud_advisor_frontend_dev
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "8080:8080"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      - backend
+    networks:
+      - cloud_advisor_dev_net
+
+networks:
+  cloud_advisor_dev_net:
+    driver: bridge
+
+volumes:
+  mongodb_dev_data:
+    driver: local

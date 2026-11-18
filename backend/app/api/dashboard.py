@@ -1,16 +1,48 @@
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from app.db.mongodb import get_database
 from app.core.dependencies import get_current_user
 from app.services.analytics_service import AnalyticsService
+from app.services.dataset_service import DatasetService
 
 router = APIRouter(prefix="/dashboard", tags=["Executive Dashboard"])
+
+class SwitchDatasetPayload(BaseModel):
+    dataset_id: str
+
+@router.get("/datasets", response_model=List[Dict[str, Any]])
+async def list_datasets(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """List available multi-cloud synthetic datasets with item count, domain, and active status."""
+    return await DatasetService.list_datasets_with_status(db, current_user["id"])
+
+@router.post("/datasets/switch", response_model=Dict[str, Any])
+async def switch_dataset(
+    payload: SwitchDatasetPayload,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Switch active dataset:
+    1. Records active dataset choice in MongoDB.
+    2. Seeds resources into db.resources if not already seeded.
+    3. Evaluates Rule Engine on the dataset and persists findings in db.findings.
+    4. Returns updated dashboard analytics for this dataset.
+    """
+    dataset_id = payload.dataset_id
+    await DatasetService.set_active_dataset_id(db, current_user["id"], dataset_id)
+    await DatasetService.ensure_dataset_seeded(db, dataset_id, current_user["id"])
+    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=False, dataset_id=dataset_id)
 
 @router.get("/analytics", response_model=Dict[str, Any])
 async def get_dashboard_analytics(
     refresh: bool = Query(True, description="Re-evaluate active rules from db.rules and persist findings in db.findings"),
+    dataset: Optional[str] = Query(None, description="bank_balanced, retail_balanced, or retail_2900"),
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
@@ -23,23 +55,25 @@ async def get_dashboard_analytics(
     - recommendations (prioritized optimization opportunities with evidence)
     - trend (12-month spend curves)
     """
-    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=refresh)
+    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=refresh, dataset_id=dataset)
 
 @router.post("/refresh", response_model=Dict[str, Any])
 async def refresh_dashboard_analytics(
+    dataset: Optional[str] = Query(None, description="bank_balanced, retail_balanced, or retail_2900"),
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Explicitly regenerate findings from MongoDB rules, store in DB, and return fresh dataset."""
-    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=True)
+    return await AnalyticsService.get_dashboard_analytics(db, current_user["id"], refresh=True, dataset_id=dataset)
 
 @router.get("/summary", response_model=Dict[str, Any])
 async def get_dashboard_summary(
+    dataset: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
-    Returns executive summary metrics:
+    Returns executive summary metrics filtered for the active dataset:
     - total_cloud_accounts
     - total_resources
     - total_findings
@@ -54,16 +88,25 @@ async def get_dashboard_summary(
     - recent_findings
     """
     user_id = current_user["id"]
+    active_dataset_id = dataset or await DatasetService.get_active_dataset_id(db, user_id)
+
+    res_match: Dict[str, Any] = {"user_id": user_id, "dataset_id": active_dataset_id}
+    if await db.resources.count_documents(res_match) == 0:
+        res_match = {"dataset_id": active_dataset_id}
+
+    find_match: Dict[str, Any] = {"user_id": user_id, "dataset_id": active_dataset_id}
+    if await db.findings.count_documents(find_match) == 0:
+        find_match = {"dataset_id": active_dataset_id}
 
     total_accounts = await db.cloud_accounts.count_documents({"user_id": user_id})
-    total_resources = await db.resources.count_documents({"user_id": user_id})
-    total_findings = await db.findings.count_documents({"user_id": user_id})
-    open_findings = await db.findings.count_documents({"user_id": user_id, "status": "open"})
-    high_severity = await db.findings.count_documents({"user_id": user_id, "severity": "high", "status": "open"})
+    total_resources = await db.resources.count_documents(res_match)
+    total_findings = await db.findings.count_documents(find_match)
+    open_findings = await db.findings.count_documents({**find_match, "status": "open"})
+    high_severity = await db.findings.count_documents({**find_match, "severity": "high", "status": "open"})
 
     # 1. Aggregate Savings by Provider
     savings_pipeline = [
-        {"$match": {"user_id": user_id, "status": "open"}},
+        {"$match": {**find_match, "status": "open"}},
         {"$group": {
             "_id": "$provider",
             "provider_monthly": {"$sum": "$savings.monthly"}
@@ -84,7 +127,7 @@ async def get_dashboard_summary(
 
     # 2. Aggregate Resource Costs by Provider
     cost_pipeline = [
-        {"$match": {"user_id": user_id}},
+        {"$match": res_match},
         {"$group": {
             "_id": "$provider",
             "monthly_cost": {"$sum": "$cost.monthly"}
@@ -103,7 +146,7 @@ async def get_dashboard_summary(
 
     # 3. Top Services Spend
     services_pipeline = [
-        {"$match": {"user_id": user_id}},
+        {"$match": res_match},
         {"$group": {
             "_id": "$resource_type",
             "cost": {"$sum": "$cost.monthly"},
@@ -121,7 +164,7 @@ async def get_dashboard_summary(
         })
 
     # 4. Recent findings snippet
-    recent_cursor = db.findings.find({"user_id": user_id, "status": "open"}).sort("created_at", -1).limit(5)
+    recent_cursor = db.findings.find({**find_match, "status": "open"}).sort("created_at", -1).limit(5)
     recent_findings = []
     async for f in recent_cursor:
         recent_findings.append({
@@ -134,6 +177,7 @@ async def get_dashboard_summary(
         })
 
     return {
+        "active_dataset_id": active_dataset_id,
         "total_cloud_accounts": total_accounts,
         "total_resources": total_resources,
         "total_findings": total_findings,

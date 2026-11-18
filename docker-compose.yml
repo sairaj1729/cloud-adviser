@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # MongoDB 7.0 - Persistent Multi-Cloud Telemetry Store
+  # ----------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: cloud_advisor_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=cloud_advisor
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cloud_advisor_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------
+  # FastAPI V1 Backend - Rule Engine & Analytics API
+  # ----------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloud_advisor_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=cloud_advisor
+      - SYNTHETIC_DATA_DIR=/app/synthetic data
+      - SECRET_KEY=super_secret_jwt_key_change_in_production_12345
+      - CORS_ORIGINS=*
+    volumes:
+      - "./synthetic data:/app/synthetic data:ro"
+      - "./backend/rules.json:/app/rules.json:ro"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - cloud_advisor_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/docs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------
+  # React + TanStack Start Frontend - Executive UI
+  # ----------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000/api
+    container_name: cloud_advisor_frontend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - HOST=0.0.0.0
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - cloud_advisor_net
+
+networks:
+  cloud_advisor_net:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local

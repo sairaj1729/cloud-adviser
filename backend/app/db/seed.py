@@ -120,13 +120,20 @@ async def seed_database_instance(db):
     logger.info("Seeded default rules into Rule Registry.")
 
     # 4. Load synthetic data from data.json
+    env_dir = os.environ.get("SYNTHETIC_DATA_DIR")
     possible_paths = [
+        os.path.join(env_dir, "data.json") if env_dir else None,
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "synthetic data", "data.json")),
+        os.path.join("/app", "synthetic data", "data.json"),
+        os.path.join("/synthetic data", "data.json"),
+        os.path.join("synthetic data", "data.json"),
+        os.path.join("..", "synthetic data", "data.json"),
+        os.path.join(os.getcwd(), "synthetic data", "data.json"),
         r"d:\Internship\Cloud\synthetic data\data.json"
     ]
     data_file = None
     for p in possible_paths:
-        if os.path.exists(p):
+        if p and os.path.exists(p):
             data_file = p
             break
 

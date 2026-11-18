@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Dict, Any, List
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.rule_engine.engine import RuleEngine
+from app.services.dataset_service import DatasetService, DATASET_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -57,16 +58,16 @@ class AnalyticsService:
     async def get_dashboard_analytics(
         db: AsyncIOMotorDatabase,
         user_id: str,
-        refresh: bool = True
+        refresh: bool = True,
+        dataset_id: str = None
     ) -> Dict[str, Any]:
         """
         Calculates dynamic analytics from MongoDB resources & findings:
-        1. Evaluates active rules fetched from MongoDB `rules` collection against resources.
-        2. Stores generated findings into MongoDB `findings` collection.
-        3. Fetches stored findings from `findings` collection.
+        1. Ensures selected dataset is seeded and rule engine evaluated into MongoDB.
+        2. Queries resources & findings filtered by active dataset_id.
+        3. Aggregates multi-cloud totals and builds provider/service summaries.
         4. Transforms findings for frontend display (recommendations, unused, resources).
         """
-        # Determine target user (fallback to demo user if current user has no resources)
         target_user_id = user_id
         user_res_count = await db.resources.count_documents({"user_id": user_id})
         if user_res_count == 0:
@@ -74,13 +75,24 @@ class AnalyticsService:
             if demo_user:
                 target_user_id = str(demo_user["_id"])
 
-        # 1. Fetch user resources or fallback to all seeded resources
-        cursor = db.resources.find({"user_id": target_user_id})
-        items = await cursor.to_list(length=10000)
+        # Determine active dataset
+        active_dataset_id = dataset_id or await DatasetService.get_active_dataset_id(db, target_user_id)
+
+        # Ensure dataset is seeded into MongoDB resources and evaluated into MongoDB findings
+        await DatasetService.ensure_dataset_seeded(db, active_dataset_id, target_user_id)
+
+        # 1. Fetch resources for active dataset
+        res_query: Dict[str, Any] = {"user_id": target_user_id, "dataset_id": active_dataset_id}
+        cursor = db.resources.find(res_query)
+        items = await cursor.to_list(length=20000)
 
         if not items:
-            cursor = db.resources.find({})
-            items = await cursor.to_list(length=10000)
+            cursor = db.resources.find({"dataset_id": active_dataset_id})
+            items = await cursor.to_list(length=20000)
+
+        if not items:
+            cursor = db.resources.find({"user_id": target_user_id})
+            items = await cursor.to_list(length=20000)
 
         # 2. Aggregations by provider & service
         provider_totals = {"AWS": 0.0, "Azure": 0.0, "GCP": 0.0}
@@ -97,17 +109,24 @@ class AnalyticsService:
             services_by_prov[prov][sname] += cost
 
         # 3. Rule Evaluation & Findings Persistence:
-        # Fetch active rules from db.rules, generate findings, and store in db.findings
-        findings_count = await db.findings.count_documents({"user_id": target_user_id})
+        findings_count = await db.findings.count_documents({"user_id": target_user_id, "dataset_id": active_dataset_id})
         if refresh or findings_count == 0:
-            logger.info(f"Generating findings from db.rules for user {target_user_id}...")
+            logger.info(f"Generating findings from db.rules for user {target_user_id} on dataset '{active_dataset_id}'...")
             engine = RuleEngine(db)
-            await engine.evaluate_all_for_user(target_user_id)
+            await engine.evaluate_all_for_user(target_user_id, dataset_id=active_dataset_id)
 
         # 4. Fetch findings directly from MongoDB findings collection
-        findings_cursor = db.findings.find({"user_id": target_user_id}).sort("savings.monthly", -1)
-        findings = await findings_cursor.to_list(length=1000)
-        logger.info(f"Retrieved {len(findings)} findings directly from MongoDB findings collection.")
+        findings_cursor = db.findings.find({
+            "user_id": target_user_id,
+            "dataset_id": active_dataset_id
+        }).sort("savings.monthly", -1)
+        findings = await findings_cursor.to_list(length=20000)
+
+        if not findings:
+            findings_cursor = db.findings.find({"dataset_id": active_dataset_id}).sort("savings.monthly", -1)
+            findings = await findings_cursor.to_list(length=20000)
+
+        logger.info(f"Retrieved {len(findings)} findings directly from MongoDB findings collection for dataset '{active_dataset_id}'.")
 
         recommendations = []
         underutilized = []
@@ -137,6 +156,7 @@ class AnalyticsService:
                 "title": f"{rule_name} ({rname})",
                 "provider": prov,
                 "resource": rname,
+                "resource_id": f.get("resource_id", rname),
                 "problem": explanation,
                 "evidence": explanation,
                 "savings": round(savings_m, 2),
@@ -144,7 +164,8 @@ class AnalyticsService:
                 "confidence": 94 if priority == "High" else 86,
                 "action": action,
                 "cost": round(cost_m, 2),
-                "status": status
+                "status": status,
+                "ai_recommendation": f.get("ai_recommendation")
             })
 
             # Categorize into Underutilized or Unused
@@ -166,21 +187,24 @@ class AnalyticsService:
                 })
 
             if rec_type == "RIGHTSIZING_REVIEW" or "001" in rule_id:
-                cpu_val = 12.0
-                cond_evals = ev.get("condition_evaluations", [])
-                for ce in cond_evals:
-                    if "cpu" in ce.get("field", ""):
-                        cpu_val = float(ce.get("actual_value") or 12.0)
-                        break
+                metrics = f.get("metrics", {})
+                cpu_val = float(metrics.get("cpu_average") or 12.0)
+                if cpu_val == 12.0:
+                    cond_evals = ev.get("condition_evaluations", [])
+                    for ce in cond_evals:
+                        if "cpu" in ce.get("field", ""):
+                            cpu_val = float(ce.get("actual_value") or 12.0)
+                            break
+                mem_val = float(metrics.get("memory_average") or (cpu_val * 1.8 + 6))
                 conf = f.get("configuration", {})
-                sku = conf.get("instance_type") or conf.get("machine_type") or conf.get("vm_size") or conf.get("tier") or "Standard"
+                sku = conf.get("instance_type") or conf.get("machine_type") or conf.get("vm_size") or conf.get("instance_class") or conf.get("tier") or conf.get("node_pool") or "Standard"
                 underutilized.append({
                     "id": fid,
                     "name": rname,
                     "provider": prov,
                     "service": f"{sname} · {sku}",
                     "cpu": round(cpu_val, 1),
-                    "memory": round(cpu_val * 1.8 + 6, 1),
+                    "memory": round(mem_val, 1),
                     "cost": round(cost_m, 2),
                     "savings": round(savings_m, 2),
                     "recommendation": action,
@@ -254,12 +278,21 @@ class AnalyticsService:
                 "GCP": round(provider_totals["GCP"] * f)
             })
 
+        spec = DATASET_REGISTRY.get(active_dataset_id, {
+            "id": active_dataset_id,
+            "name": "Cloud Multi-Cloud Fleet",
+            "domain": "Enterprise Cloud",
+            "description": "Multi-Cloud Fleet"
+        })
+
         return {
             "scenario": {
-                "id": "production",
-                "name": "Production Infrastructure",
+                "id": active_dataset_id,
+                "name": spec.get("name"),
+                "domain": spec.get("domain"),
                 "tagline": f"{len(items):,} Multi-Cloud Resources · {len(findings)} Live DB Findings",
-                "synthetic": False
+                "synthetic": False,
+                "item_count": len(items)
             },
             "providerMeta": provider_meta,
             "services": services_formatted,

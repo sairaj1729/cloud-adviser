@@ -38,16 +38,20 @@ export default defineConfig(({ command }) => ({
     ...(command === "build"
       ? [
           nitro({
-            defaultPreset: "cloudflare-module",
+            defaultPreset: process.env['NITRO_PRESET'] || "node-server",
             output: {
               dir: "dist",
               serverDir: "dist/server",
               publicDir: "dist/client",
             },
-            cloudflare: {
-              nodeCompat: true,
-              deployConfig: true,
-            },
+            ...(process.env['NITRO_PRESET'] === "cloudflare-module"
+              ? {
+                  cloudflare: {
+                    nodeCompat: true,
+                    deployConfig: true,
+                  },
+                }
+              : {}),
           }),
         ]
       : []),
