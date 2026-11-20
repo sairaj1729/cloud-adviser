@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as AiRecommendationsRouteImport } from './routes/ai-recommendations'
 import { Route as CostUsageRouteImport } from './routes/cost-usage'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LowUtilizationRouteImport } from './routes/low-utilization'
@@ -26,6 +27,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountRoute = AccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRecommendationsRoute = AiRecommendationsRouteImport.update({
+  id: '/ai-recommendations',
+  path: '/ai-recommendations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CostUsageRoute = CostUsageRouteImport.update({
@@ -62,6 +68,7 @@ const UnusedServicesRoute = UnusedServicesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/ai-recommendations': typeof AiRecommendationsRoute
   '/cost-usage': typeof CostUsageRoute
   '/login': typeof LoginRoute
   '/low-utilization': typeof LowUtilizationRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/ai-recommendations': typeof AiRecommendationsRoute
   '/cost-usage': typeof CostUsageRoute
   '/login': typeof LoginRoute
   '/low-utilization': typeof LowUtilizationRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/ai-recommendations': typeof AiRecommendationsRoute
   '/cost-usage': typeof CostUsageRoute
   '/login': typeof LoginRoute
   '/low-utilization': typeof LowUtilizationRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/ai-recommendations'
     | '/cost-usage'
     | '/login'
     | '/low-utilization'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
+    | '/ai-recommendations'
     | '/cost-usage'
     | '/login'
     | '/low-utilization'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/ai-recommendations'
     | '/cost-usage'
     | '/login'
     | '/low-utilization'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
+  AiRecommendationsRoute: typeof AiRecommendationsRoute
   CostUsageRoute: typeof CostUsageRoute
   LoginRoute: typeof LoginRoute
   LowUtilizationRoute: typeof LowUtilizationRoute
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-recommendations': {
+      id: '/ai-recommendations'
+      path: '/ai-recommendations'
+      fullPath: '/ai-recommendations'
+      preLoaderRoute: typeof AiRecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cost-usage': {
@@ -198,6 +218,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
+  AiRecommendationsRoute: AiRecommendationsRoute,
   CostUsageRoute: CostUsageRoute,
   LoginRoute: LoginRoute,
   LowUtilizationRoute: LowUtilizationRoute,

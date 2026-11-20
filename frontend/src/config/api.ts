@@ -295,8 +295,16 @@ export async function apiBatchGenerateAIRecommendations(
   });
 }
 
-export async function apiListAIRecommendations(limit: number = 50): Promise<AIRecommendationData[]> {
-  return request<AIRecommendationData[]>(`/ai/recommendations?limit=${limit}`);
+export async function apiListAIRecommendations(
+  limit: number = 100,
+  provider?: string,
+  action?: string
+): Promise<AIRecommendationData[]> {
+  const params = new URLSearchParams();
+  params.append('limit', String(limit));
+  if (provider && provider !== 'All') params.append('provider', provider.toLowerCase());
+  if (action && action !== 'All') params.append('action', action);
+  return request<AIRecommendationData[]>(`/ai/recommendations?${params.toString()}`);
 }
 
 export async function apiUpdateAIRecommendationStatus(resourceId: string, newStatus: string) {

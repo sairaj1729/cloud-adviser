@@ -65,14 +65,16 @@ async def batch_generate_recommendations(
 
 @router.get("/recommendations", response_model=List[Dict[str, Any]])
 async def list_ai_recommendations(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(100, ge=1, le=200),
+    provider: Optional[str] = Query(None, description="Cloud provider filter: 'aws', 'azure', 'gcp'"),
+    action: Optional[str] = Query(None, description="AI action filter: 'RIGHTSIZE', 'TERMINATE', etc."),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     List all persisted AI recommendations from the `ai_recommendations` collection.
     """
     service = AIRecommendationService(db)
-    return await service.list_recommendations(limit=limit)
+    return await service.list_recommendations(provider=provider, action=action, limit=limit)
 
 @router.get("/recommendations/{resource_id}", response_model=Optional[Dict[str, Any]])
 async def get_ai_recommendation(

@@ -144,9 +144,20 @@ class AIRecommendationService:
             items=results
         )
 
-    async def list_recommendations(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """List stored AI recommendations from MongoDB."""
-        cursor = self.db.ai_recommendations.find({}).sort("created_at", -1).limit(limit)
+    async def list_recommendations(
+        self,
+        provider: Optional[str] = None,
+        action: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """List stored AI recommendations from MongoDB, sorted by highest potential savings."""
+        query: Dict[str, Any] = {}
+        if provider and provider.lower() not in ["all", ""]:
+            query["provider"] = provider.upper()
+        if action and action.lower() not in ["all", ""]:
+            query["action"] = action.upper()
+
+        cursor = self.db.ai_recommendations.find(query).sort("estimated_monthly_savings", -1).limit(limit)
         records = await cursor.to_list(length=limit)
         for r in records:
             r["_id"] = str(r["_id"])

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Activity, Bell, Building2, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Cloud, Database, Gauge, LayoutDashboard, Lightbulb, Menu, MoreHorizontal, RefreshCw, Search, ShieldCheck, ShoppingBag, Store, UserRound, Wallet, X } from 'lucide-react';
+import { Activity, Bell, Building2, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Cloud, Database, Gauge, LayoutDashboard, Lightbulb, Menu, MoreHorizontal, RefreshCw, Search, ShieldCheck, ShoppingBag, Sparkles, Store, UserRound, Wallet, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -45,6 +45,7 @@ const links = [
   {label:'Unused Services', to:'/unused-services', icon:Search},
   {label:'Low Utilization', to:'/low-utilization', icon:Gauge},
   {label:'Recommendations', to:'/recommendations', icon:Lightbulb},
+  {label:'AI Recommendations', to:'/ai-recommendations', icon:Sparkles},
   {label:'Account', to:'/account', icon:UserRound},
 ] as const;
 
@@ -54,6 +55,7 @@ const pageDescriptions: Record<string,string> = {
   '/unused-services':'Spot services that may no longer be needed.',
   '/low-utilization':'Find capacity that can work harder.',
   '/recommendations':'Clear next steps to reduce cloud spend.',
+  '/ai-recommendations':'LLM-driven fleet rightsizing, SKU transitions, and automated CLI runbooks.',
   '/account':'Your workspace and cloud connections.'
 };
 
@@ -81,7 +83,7 @@ function SideNav({collapsed, onNavigate}: {collapsed:boolean; onNavigate?:()=>vo
           to={to}
           onClick={onNavigate}
           aria-label={label}
-          className={cn('nav-link group',path===to && 'nav-link-active', i===5 && 'mt-5 border-t border-border pt-6 rounded-none')}
+          className={cn('nav-link group',path===to && 'nav-link-active', i===6 && 'mt-5 border-t border-border pt-6 rounded-none')}
           title={collapsed?label:undefined}
         >
           <Icon size={18} strokeWidth={1.8} className="shrink-0"/>
@@ -419,6 +421,7 @@ export function AppShell({children}: {children:ReactNode}) {
     '/unused-services': `${cloud} Unused Services`,
     '/low-utilization': `${cloud} Low Utilization`,
     '/recommendations': `${cloud} Recommendations`,
+    '/ai-recommendations': `${cloud} AI Recommendations`,
     '/account': 'Account Settings',
   };
   const activeDescriptions: Record<string, string> = {
@@ -427,6 +430,7 @@ export function AppShell({children}: {children:ReactNode}) {
     '/unused-services': `Spot ${cloud} services that may no longer be needed.`,
     '/low-utilization': `Find ${cloud} capacity that can work harder.`,
     '/recommendations': `Clear next steps to reduce ${cloud} spend.`,
+    '/ai-recommendations': `Deep LLM-driven fleet rightsizing, hardware transitions, and automated CLI runbooks.`,
     '/account': 'Your workspace and cloud connections.'
   };
 
