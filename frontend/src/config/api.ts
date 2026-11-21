@@ -269,10 +269,10 @@ export type AIBatchResult = {
 
 export async function apiGetAIRecommendation(resourceId: string, findingId?: string, provider?: string): Promise<AIRecommendationData> {
   const params = new URLSearchParams();
+  params.append('resource_id', resourceId);
   if (findingId) params.append('finding_id', findingId);
   if (provider) params.append('provider', provider);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return request<AIRecommendationData>(`/ai/recommend/${encodeURIComponent(resourceId)}${query}`, {
+  return request<AIRecommendationData>(`/ai/recommend?${params.toString()}`, {
     method: 'POST'
   });
 }
@@ -310,7 +310,10 @@ export async function apiListAIRecommendations(
 }
 
 export async function apiUpdateAIRecommendationStatus(resourceId: string, newStatus: string) {
-  return request<any>(`/ai/recommendations/${encodeURIComponent(resourceId)}/status?new_status=${encodeURIComponent(newStatus)}`, {
+  const params = new URLSearchParams();
+  params.append('resource_id', resourceId);
+  params.append('new_status', newStatus);
+  return request<any>(`/ai/recommendations/status?${params.toString()}`, {
     method: 'PATCH'
   });
 }
