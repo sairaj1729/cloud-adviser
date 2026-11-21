@@ -16,7 +16,7 @@ class ContextBuilder:
     """
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
-
+    
     async def build_context(self, resource_id: str, finding_id: str = None) -> Tuple[str, Dict[str, Any]]:
         # 1. Fetch Resource from MongoDB (supports resource_id, id, or name)
         resource = await self.db.resources.find_one({"resource_id": resource_id})
@@ -75,6 +75,7 @@ class ContextBuilder:
             "resource_id": resource.get("resource_id", resource_id),
             "resource_name": resource.get("name") or resource.get("resource_name") or resource_id,
             "provider": provider,
+            "dataset_id": finding.get("dataset_id") or resource.get("dataset_id"),
             "resource_type": res_type,
             "current_sku": current_sku,
             "monthly_cost": monthly_cost,

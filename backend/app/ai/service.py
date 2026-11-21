@@ -43,6 +43,7 @@ class AIRecommendationService:
 
         # 4. Enforce Deterministic Guardrails
         validated = RecommendationValidator.validate_and_sanitize(raw_output, context_data)
+        validated["dataset_id"] = context_data.get("dataset_id")
         validated["llm_provider_used"] = llm.provider_name
         validated["llm_model_used"] = llm.model_name
         validated["created_at"] = datetime.now(timezone.utc)
@@ -87,9 +88,20 @@ class AIRecommendationService:
         if cloud_provider and cloud_provider.lower() not in ["all", ""]:
             query["provider"] = cloud_provider.lower()
 
-        # Sort by savings.monthly descending so top-impact recommendations are prioritized!
-        cursor = self.db.findings.find(query).sort("savings.monthly", -1).limit(limit)
-        findings = await cursor.to_list(length=limit)
+        # Sort by savings.monthly descending and deduplicate by resource_id so distinct resources are analyzed
+        cursor = self.db.findings.find(query).sort("savings.monthly", -1).limit(limit * 3)
+        candidates = await cursor.to_list(length=limit * 3)
+
+        seen_res = set()
+        findings: List[Dict[str, Any]] = []
+        for f in candidates:
+            res_id = f.get("resource_id")
+            if not res_id or res_id in seen_res:
+                continue
+            seen_res.add(res_id)
+            findings.append(f)
+            if len(findings) >= limit:
+                break
 
         # Pre-fetch existing ai_recommendations to avoid redundant LLM calls if not forced
         ai_cached_by_res: Dict[str, Any] = {}
@@ -116,9 +128,26 @@ class AIRecommendationService:
                 cached = f.get("ai_recommendation") or ai_cached_by_res.get(res_id)
                 if cached and isinstance(cached, dict):
                     try:
-                        return AIRecommendationResponse(**cached)
-                    except Exception:
-                        pass
+                        cached_rec = dict(cached)
+                        cached_rec["resource_id"] = res_id
+                        if f.get("dataset_id") and not cached_rec.get("dataset_id"):
+                            cached_rec["dataset_id"] = f.get("dataset_id")
+                        if not cached_rec.get("provider"):
+                            cached_rec["provider"] = f.get("provider", "AWS").upper()
+                        else:
+                            cached_rec["provider"] = str(cached_rec["provider"]).upper()
+                        if not cached_rec.get("status"):
+                            cached_rec["status"] = "PENDING_APPROVAL"
+
+                        # Ensure cached recommendation is persisted in db.ai_recommendations!
+                        await self.db.ai_recommendations.update_one(
+                            {"resource_id": res_id},
+                            {"$set": cached_rec},
+                            upsert=True
+                        )
+                        return AIRecommendationResponse(**cached_rec)
+                    except Exception as e:
+                        logger.warning(f"Error restoring cached recommendation for {res_id}: {e}")
 
             async with sem:
                 try:
@@ -144,21 +173,62 @@ class AIRecommendationService:
             items=results
         )
 
+    async def sync_findings_to_recommendations(self):
+        """Ensure open findings with embedded ai_recommendation are synced into ai_recommendations collection."""
+        try:
+            cursor = self.db.findings.find({"ai_recommendation": {"$exists": True, "$ne": None}})
+            findings = await cursor.to_list(length=500)
+            for f in findings:
+                rec = f.get("ai_recommendation")
+                if not rec or not isinstance(rec, dict):
+                    continue
+                res_id = f.get("resource_id") or rec.get("resource_id")
+                if not res_id:
+                    continue
+                rec_to_save = dict(rec)
+                rec_to_save["resource_id"] = res_id
+                if f.get("dataset_id") and not rec_to_save.get("dataset_id"):
+                    rec_to_save["dataset_id"] = f.get("dataset_id")
+                rec_to_save["provider"] = str(rec_to_save.get("provider") or f.get("provider", "AWS")).upper()
+                if not rec_to_save.get("status"):
+                    rec_to_save["status"] = "PENDING_APPROVAL"
+                await self.db.ai_recommendations.update_one(
+                    {"resource_id": res_id},
+                    {"$set": rec_to_save},
+                    upsert=True
+                )
+        except Exception as e:
+            logger.warning(f"Findings to ai_recommendations sync failed: {e}")
+
     async def list_recommendations(
         self,
         provider: Optional[str] = None,
         action: Optional[str] = None,
+        dataset_id: Optional[str] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """List stored AI recommendations from MongoDB, sorted by highest potential savings."""
         query: Dict[str, Any] = {}
         if provider and provider.lower() not in ["all", ""]:
-            query["provider"] = provider.upper()
+            query["provider"] = {"$regex": f"^{provider}$", "$options": "i"}
         if action and action.lower() not in ["all", ""]:
             query["action"] = action.upper()
+        if dataset_id and dataset_id.lower() not in ["all", ""]:
+            query["$or"] = [
+                {"dataset_id": dataset_id},
+                {"dataset_id": {"$exists": False}},
+                {"dataset_id": None}
+            ]
 
         cursor = self.db.ai_recommendations.find(query).sort("estimated_monthly_savings", -1).limit(limit)
         records = await cursor.to_list(length=limit)
+
+        # If zero records found and filtering by provider, sync from findings and re-query
+        if len(records) == 0:
+            await self.sync_findings_to_recommendations()
+            cursor = self.db.ai_recommendations.find(query).sort("estimated_monthly_savings", -1).limit(limit)
+            records = await cursor.to_list(length=limit)
+
         for r in records:
             r["_id"] = str(r["_id"])
         return records

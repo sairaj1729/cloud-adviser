@@ -34,3 +34,7 @@ frontend/.output/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Database files
+backend/data/
+data/

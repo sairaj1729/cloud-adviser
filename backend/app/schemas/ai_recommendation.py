@@ -8,6 +8,7 @@ class AIRecommendationResponse(BaseModel):
     resource_id: str
     resource_name: Optional[str] = None
     provider: str
+    dataset_id: Optional[str] = None
     action: str = Field(..., description="RIGHTSIZE, STOP, TERMINATE, STORAGE_DOWNGRADE, or NO_ACTION")
     target_sku: Optional[str] = Field(None, description="Recommended SKU / instance type (e.g., t4g.large)")
     current_sku: Optional[str] = Field(None, description="Current instance type or storage tier")

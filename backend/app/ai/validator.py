@@ -49,6 +49,7 @@ class RecommendationValidator:
             "resource_id": context["resource_id"],
             "resource_name": context.get("resource_name"),
             "provider": context.get("provider", "AWS"),
+            "dataset_id": context.get("dataset_id"),
             "action": action,
             "target_sku": raw.get("target_sku"),
             "current_sku": context.get("current_sku"),

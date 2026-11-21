@@ -298,12 +298,14 @@ export async function apiBatchGenerateAIRecommendations(
 export async function apiListAIRecommendations(
   limit: number = 100,
   provider?: string,
-  action?: string
+  action?: string,
+  datasetId?: string
 ): Promise<AIRecommendationData[]> {
   const params = new URLSearchParams();
   params.append('limit', String(limit));
   if (provider && provider !== 'All') params.append('provider', provider.toLowerCase());
   if (action && action !== 'All') params.append('action', action);
+  if (datasetId && datasetId !== 'All') params.append('dataset_id', datasetId);
   return request<AIRecommendationData[]>(`/ai/recommendations?${params.toString()}`);
 }
 

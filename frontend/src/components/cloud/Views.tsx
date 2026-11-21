@@ -820,7 +820,8 @@ export function AiRecommendationsView() {
       const data = await apiListAIRecommendations(
         100, 
         filter === 'All' ? undefined : filter, 
-        actionFilter === 'All' ? undefined : actionFilter
+        actionFilter === 'All' ? undefined : actionFilter,
+        activeDatasetId || undefined
       );
       setRecommendations(data || []);
     } catch (err: any) {
@@ -833,7 +834,7 @@ export function AiRecommendationsView() {
 
   useEffect(() => {
     fetchRecommendations();
-  }, [filter, actionFilter]);
+  }, [filter, actionFilter, activeDatasetId]);
 
   // Run AI Fleet Analysis across open rule engine findings
   const handleBatchAiAnalysis = async () => {
@@ -845,6 +846,15 @@ export function AiRecommendationsView() {
         filter === 'All' ? undefined : filter,
         activeDatasetId || undefined
       );
+      if (res.items && res.items.length > 0) {
+        setRecommendations(prev => {
+          const map = new Map(prev.map(r => [r.resource_id, r]));
+          for (const item of res.items) {
+            map.set(item.resource_id, item);
+          }
+          return Array.from(map.values()).sort((a, b) => (b.estimated_monthly_savings || 0) - (a.estimated_monthly_savings || 0));
+        });
+      }
       await fetchRecommendations(true);
       notify(`✨ AI Fleet Analysis complete: ${res.recommendations_generated} recommendations synthesized, saving ${money(res.total_estimated_monthly_savings)}/mo!`);
     } catch (err: any) {
