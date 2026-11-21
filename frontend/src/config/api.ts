@@ -2,7 +2,7 @@
 export const API_BASE_URL = 
   (typeof window !== 'undefined' && (window as any).__CLOUDADVISOR_API_URL__) ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
-  'http://localhost:8000/api';
+  'http://localhost:8001/api';
 
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
