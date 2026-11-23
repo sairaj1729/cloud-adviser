@@ -198,6 +198,14 @@ class AIRecommendationService:
                 rec_to_save["provider"] = str(rec_to_save.get("provider") or f.get("provider", "AWS")).upper()
                 if not rec_to_save.get("status"):
                     rec_to_save["status"] = "PENDING_APPROVAL"
+                if not rec_to_save.get("resource_name"):
+                    rec_to_save["resource_name"] = f.get("resource_name", res_id)
+                if not rec_to_save.get("service") or not rec_to_save.get("category"):
+                    from app.services.analytics_service import get_service_name, get_category_name
+                    rtype = rec_to_save.get("resource_type") or f.get("resource_type", "compute_instance")
+                    rec_to_save["resource_type"] = rtype
+                    rec_to_save["service"] = get_service_name(rtype, rec_to_save["provider"])
+                    rec_to_save["category"] = get_category_name(rtype)
                 await self.db.ai_recommendations.update_one(
                     {"resource_id": res_id},
                     {"$set": rec_to_save},
@@ -237,4 +245,12 @@ class AIRecommendationService:
 
         for r in records:
             r["_id"] = str(r["_id"])
+            if not r.get("service") or not r.get("category"):
+                from app.services.analytics_service import get_service_name, get_category_name
+                rtype = r.get("resource_type") or "compute_instance"
+                prov = str(r.get("provider") or "AWS").upper()
+                if not r.get("service"):
+                    r["service"] = get_service_name(rtype, prov)
+                if not r.get("category"):
+                    r["category"] = get_category_name(rtype)
         return records

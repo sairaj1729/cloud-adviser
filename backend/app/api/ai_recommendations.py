@@ -100,6 +100,14 @@ async def get_ai_recommendation(
     if not rec:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No AI recommendation found for '{final_res_id}'.")
     rec["_id"] = str(rec["_id"])
+    if not rec.get("service") or not rec.get("category"):
+        from app.services.analytics_service import get_service_name, get_category_name
+        rtype = rec.get("resource_type") or "compute_instance"
+        prov = str(rec.get("provider") or "AWS").upper()
+        if not rec.get("service"):
+            rec["service"] = get_service_name(rtype, prov)
+        if not rec.get("category"):
+            rec["category"] = get_category_name(rtype)
     return rec
 
 @router.patch("/recommendations/status")

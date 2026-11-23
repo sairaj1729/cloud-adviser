@@ -244,6 +244,9 @@ export type AIRecommendationData = {
   resource_id: string;
   resource_name?: string;
   provider: string;
+  resource_type?: string;
+  service?: string;
+  category?: string;
   action: 'RIGHTSIZE' | 'STOP' | 'TERMINATE' | 'STORAGE_DOWNGRADE' | 'NO_ACTION' | string;
   target_sku?: string | null;
   current_sku?: string | null;

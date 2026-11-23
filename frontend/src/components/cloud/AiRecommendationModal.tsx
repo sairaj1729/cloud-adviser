@@ -213,9 +213,15 @@ export function AiRecommendationModal({
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
             <span>Resource: <strong className="text-foreground font-mono">{recommendation.resource}</strong></span>
-            <span className="text-[10px] bg-secondary text-foreground px-1.5 py-0.5 rounded border border-border font-medium">
-              {recommendation.service || recommendation.category || 'Compute'}
+            <span className="text-[10px] bg-secondary/90 text-foreground px-2 py-0.5 rounded border border-border font-semibold">
+              {aiData?.category || recommendation.category || 'Compute'}
             </span>
+            {(aiData?.service || recommendation.service) && (
+              <>
+                <span>·</span>
+                <span className="text-foreground/90 font-medium">{aiData?.service || recommendation.service}</span>
+              </>
+            )}
             <span>·</span>
             <span className="font-mono text-muted-foreground">ID: {recommendation.id}</span>
           </DialogDescription>
@@ -249,6 +255,26 @@ export function AiRecommendationModal({
             </div>
           ) : aiData ? (
             <>
+              {/* Asset Identity Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-secondary/30 border border-border/70 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Category:</span>
+                  <span className="px-2 py-0.5 rounded font-semibold bg-secondary text-foreground border border-border text-[11px]">
+                    {aiData.category || recommendation.category || 'Compute'}
+                  </span>
+                </div>
+                {(aiData.service || recommendation.service) && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground font-medium">Cloud Service:</span>
+                    <strong className="text-foreground font-semibold">{aiData.service || recommendation.service}</strong>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>Provider:</span>
+                  <strong className="text-foreground font-sans font-medium">{aiData.provider || recommendation.provider}</strong>
+                </div>
+              </div>
+
               {/* Top 3 KPI Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* 1. Proposed Action & Sizing */}

@@ -642,12 +642,19 @@ export function RecommendationsView() {
             </div>
 
             <h3>{r.title}</h3>
-            <div className="rec-resource">
+            <div className="rec-resource flex items-center gap-1.5 flex-wrap">
               <ProviderBadge provider={r.provider}/>
-              <span className="truncate max-w-[200px]">{r.resource}</span>
-              <span className="text-[10px] bg-secondary/80 text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium ml-auto shrink-0">
-                {r.service || r.category || 'Compute'}
-              </span>
+              <span className="truncate max-w-[180px] font-medium">{r.resource}</span>
+              <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                {r.service && (
+                  <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
+                    {r.service} ·
+                  </span>
+                )}
+                <span className="text-[10px] bg-secondary/90 text-foreground px-1.5 py-0.5 rounded border border-border font-semibold">
+                  {r.category || 'Compute'}
+                </span>
+              </div>
             </div>
             <p className="rec-problem">{r.problem}</p>
             <div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div>
@@ -824,6 +831,7 @@ export function AiRecommendationsView() {
   const [filter, setFilter] = useState<string>(cloud);
   const [actionFilter, setActionFilter] = useState<string>('All');
   const [riskFilter, setRiskFilter] = useState<string>('All');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [tab, setTab] = useState<'All' | 'PENDING_APPROVAL' | 'APPROVED' | 'EXECUTED'>('All');
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -931,6 +939,9 @@ export function AiRecommendationsView() {
       priority: (item.risk_level?.toUpperCase() === 'HIGH' ? 'High' : item.risk_level?.toUpperCase() === 'MEDIUM' ? 'Medium' : 'Low'),
       confidence: 96,
       action: item.action,
+      service: item.service,
+      category: item.category,
+      resource_type: item.resource_type,
       ai_recommendation: item
     };
     setAiModalRec(recObj);
@@ -946,16 +957,20 @@ export function AiRecommendationsView() {
       const matchProvider = filter === 'All' || r.provider?.toUpperCase() === filter.toUpperCase();
       const matchAction = actionFilter === 'All' || r.action?.toUpperCase() === actionFilter.toUpperCase();
       const matchRisk = riskFilter === 'All' || r.risk_level?.toUpperCase() === riskFilter.toUpperCase();
+      const matchCategory = categoryFilter === 'All' || (r.category && r.category.toLowerCase() === categoryFilter.toLowerCase());
       const matchTab = tab === 'All' || (r.status || 'PENDING_APPROVAL') === tab;
-      const matchQuery = !query.trim() || 
-        r.resource_id.toLowerCase().includes(query.toLowerCase()) ||
-        (r.resource_name && r.resource_name.toLowerCase().includes(query.toLowerCase())) ||
-        (r.target_sku && r.target_sku.toLowerCase().includes(query.toLowerCase())) ||
-        (r.justification && r.justification.toLowerCase().includes(query.toLowerCase()));
+      const q = query.toLowerCase().trim();
+      const matchQuery = !q || 
+        r.resource_id.toLowerCase().includes(q) ||
+        (r.resource_name && r.resource_name.toLowerCase().includes(q)) ||
+        (r.category && r.category.toLowerCase().includes(q)) ||
+        (r.service && r.service.toLowerCase().includes(q)) ||
+        (r.target_sku && r.target_sku.toLowerCase().includes(q)) ||
+        (r.justification && r.justification.toLowerCase().includes(q));
 
-      return matchProvider && matchAction && matchRisk && matchTab && matchQuery;
+      return matchProvider && matchAction && matchRisk && matchCategory && matchTab && matchQuery;
     });
-  }, [recommendations, filter, actionFilter, riskFilter, tab, query]);
+  }, [recommendations, filter, actionFilter, riskFilter, categoryFilter, tab, query]);
 
   // Aggregate stats
   const totalSavings = useMemo(() => {
@@ -1118,7 +1133,7 @@ export function AiRecommendationsView() {
             <Input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search by resource, SKU, or justification..."
+              placeholder="Search by resource, service, category, or SKU..."
               className="pl-8 h-9 text-xs"
             />
           </div>
@@ -1130,6 +1145,15 @@ export function AiRecommendationsView() {
             <SelectContent>
               {['All', 'AWS', 'Azure', 'GCP'].map(v => (
                 <SelectItem key={v} value={v}>{v === 'All' ? 'All providers' : v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="filter-select h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              {['All', 'Compute', 'Databases', 'Storage', 'Containers & Kubernetes', 'Analytics', 'Networking'].map(v => (
+                <SelectItem key={v} value={v}>{v === 'All' ? 'All categories' : v}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1230,16 +1254,24 @@ export function AiRecommendationsView() {
                   </div>
 
                   {/* Resource Identity */}
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <h3 className="font-semibold text-foreground text-sm truncate" title={item.resource_name || item.resource_id}>
-                      {item.resource_name || item.resource_id}
-                    </h3>
-                    <span className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded border border-border shrink-0 font-medium">
-                      {item.service || item.category || (item.resource_type ? item.resource_type.replace(/_/g, ' ') : 'Compute')}
-                    </span>
-                  </div>
-                  <div className="text-[11px] font-mono text-muted-foreground truncate mb-2.5">
-                    {item.resource_id}
+                  <div className="mb-2.5">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <h3 className="font-semibold text-foreground text-sm truncate" title={item.resource_name || item.resource_id}>
+                        {item.resource_name || item.resource_id}
+                      </h3>
+                      <span className="text-[10px] bg-secondary/90 text-foreground px-2 py-0.5 rounded border border-border shrink-0 font-semibold">
+                        {item.category || (item.resource_type ? (item.resource_type.includes('db') || item.resource_type.includes('sql') ? 'Databases' : item.resource_type.includes('disk') || item.resource_type.includes('storage') ? 'Storage' : 'Compute') : 'Compute')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                      {item.service && (
+                        <>
+                          <span className="font-semibold text-foreground/80 shrink-0">{item.service}</span>
+                          <span className="shrink-0 text-muted-foreground/60">·</span>
+                        </>
+                      )}
+                      <span className="font-mono truncate">{item.resource_id}</span>
+                    </div>
                   </div>
 
                   {/* Hardware Transition */}

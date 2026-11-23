@@ -49,8 +49,9 @@ NAME_MAP = {
 }
 
 def get_service_name(rtype: str, prov: str) -> str:
+    prov_u = str(prov or "").upper()
     m = NAME_MAP.get(rtype, {})
-    return m.get(prov, rtype.replace("_", " ").title())
+    return m.get(prov_u, rtype.replace("_", " ").title())
 
 CATEGORY_MAP = {
     "compute_instance": "Compute",
