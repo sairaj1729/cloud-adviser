@@ -447,7 +447,7 @@ export function UnusedView() {
    <FindingDrawer item={selected} onClose={()=>setSelected(null)}/>
  </div>;
 }
-function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.service} · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3><p>{item.evidence}</p></div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
+function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.service} · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3>{item.evidence?.includes(' | ') ? (<div className="space-y-1.5 mt-2">{item.evidence.split(' | ').map((part, idx) => (<div key={idx} className="flex items-center gap-2 text-xs text-foreground font-mono bg-secondary/60 px-2.5 py-1.5 rounded border border-border/70"><span className="w-1.5 h-1.5 rounded-full bg-primary flex-none" /><span>{part}</span></div>))}</div>) : (<p>{item.evidence}</p>)}</div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
 export function UtilizationView() {
  const {providerMeta,resources}=useDataset();
  const {cloud,setCloud,isFetching}=useCloudApp();
@@ -686,9 +686,29 @@ export function RecommendationsView() {
             <div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div>
             <div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(selected.savings)}</strong></div>
           </div>
-          <div className="drawer-section"><h3>Why this was detected</h3><p>{selected.problem}</p></div>
-          <div className="drawer-section"><h3>Evidence</h3><p>{selected.evidence}</p></div>
-          <div className="drawer-section"><h3>Suggested action</h3><p>{selected.action}</p></div>
+          <div className="drawer-section">
+            <h3>Why this was detected</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mt-1">{selected.problem}</p>
+          </div>
+          <div className="drawer-section">
+            <h3>Evidence</h3>
+            {selected.evidence?.includes(' | ') ? (
+              <div className="space-y-1.5 mt-2">
+                {selected.evidence.split(' | ').map((part, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs text-foreground font-mono bg-secondary/60 px-2.5 py-1.5 rounded border border-border/70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary flex-none" />
+                    <span>{part}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed mt-1">{selected.evidence}</p>
+            )}
+          </div>
+          <div className="drawer-section">
+            <h3>Suggested action</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mt-1">{selected.action}</p>
+          </div>
 
           {/* AI Advisor Section inside Drawer */}
           <div className="drawer-section border-t border-border pt-4">

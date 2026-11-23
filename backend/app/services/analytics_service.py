@@ -52,6 +52,82 @@ def get_service_name(rtype: str, prov: str) -> str:
     m = NAME_MAP.get(rtype, {})
     return m.get(prov, rtype.replace("_", " ").title())
 
+def format_evidence_summary(finding: Dict[str, Any]) -> str:
+    """
+    Synthesize concrete, quantitative metrics and policy thresholds for the evidence section,
+    differentiating it from the qualitative rule problem explanation.
+    """
+    ev = finding.get("evidence", {})
+    metrics = finding.get("metrics", {})
+    conds = ev.get("condition_evaluations", [])
+    lookback = ev.get("lookback_period", "14 days")
+    conf = finding.get("configuration", {})
+
+    parts = []
+
+    # 1. Condition evaluations (rule thresholds and measured values)
+    rule_metrics_mentioned = set()
+    for c in conds:
+        field = c.get("field", "")
+        actual = c.get("actual_value")
+        op = c.get("operator", "")
+        thresh = c.get("threshold")
+        op_sym = "<" if op in ["lt", "lte"] else ">" if op in ["gt", "gte"] else "="
+
+        # Filter out redundant lower/upper bounds like cpu_average > 0
+        if "cpu" in field:
+            if op in ["gt", "gte"] and (thresh == 0.0 or thresh == 0):
+                continue
+            rule_metrics_mentioned.add("cpu")
+            parts.append(f"Avg CPU: {actual}% (rule threshold: {op_sym} {thresh}%)")
+        elif "memory" in field:
+            if op in ["gt", "gte"] and (thresh == 0.0 or thresh == 0):
+                continue
+            rule_metrics_mentioned.add("memory")
+            parts.append(f"Avg Memory: {actual}% (rule threshold: {op_sym} {thresh}%)")
+        elif "cost" in field:
+            if field == "cost.currency":
+                continue
+            try:
+                parts.append(f"Monthly Cost: ${float(actual):,.2f} (rule threshold: {op_sym} ${float(thresh):,.2f})")
+            except (ValueError, TypeError):
+                parts.append(f"Cost: {actual} (threshold: {op_sym} {thresh})")
+        elif "volume_type" in field or "status" in field:
+            parts.append(f"Volume State: {actual}")
+
+    # 2. General telemetry metrics if available (and non-zero)
+    cpu_avg = metrics.get("cpu_average")
+    cpu_p95 = metrics.get("cpu_p95")
+    mem_avg = metrics.get("memory_average")
+    mem_p95 = metrics.get("memory_p95")
+
+    telemetry_parts = []
+    if cpu_avg is not None and float(cpu_avg) > 0 and "cpu" not in rule_metrics_mentioned:
+        telemetry_parts.append(f"Avg CPU: {cpu_avg}%")
+    if cpu_p95 is not None and float(cpu_p95) > 0:
+        telemetry_parts.append(f"Peak CPU (p95): {cpu_p95}%")
+    if mem_avg is not None and float(mem_avg) > 0 and "memory" not in rule_metrics_mentioned:
+        telemetry_parts.append(f"RAM Avg: {mem_avg}%")
+    if mem_p95 is not None and float(mem_p95) > 0:
+        telemetry_parts.append(f"RAM Peak (p95): {mem_p95}%")
+
+    if telemetry_parts:
+        parts.append(" · ".join(telemetry_parts))
+
+    # 3. Storage / Configuration attributes
+    vtype = conf.get("volume_type")
+    if vtype:
+        parts.append(f"Storage Type: {vtype}")
+    size = conf.get("size_gb")
+    if size:
+        parts.append(f"Size: {size} GB")
+
+    # 4. Lookback window
+    if lookback:
+        parts.append(f"Lookback window: {lookback}")
+
+    return " | ".join(parts) if parts else (ev.get("explanation") or "Satisfied rule evaluation criteria.")
+
 class AnalyticsService:
 
     @staticmethod
@@ -163,6 +239,7 @@ class AnalyticsService:
             status = f.get("status", "open")
             res_id_val = f.get("resource_id", rname)
             ai_data = f.get("ai_recommendation") or ai_recs_by_res.get(res_id_val)
+            evidence_summary = format_evidence_summary(f)
 
             # Format Recommendation
             recommendations.append({
@@ -172,7 +249,7 @@ class AnalyticsService:
                 "resource": rname,
                 "resource_id": res_id_val,
                 "problem": explanation,
-                "evidence": explanation,
+                "evidence": evidence_summary,
                 "savings": round(savings_m, 2),
                 "priority": priority,
                 "confidence": 94 if priority == "High" else 86,
@@ -195,7 +272,7 @@ class AnalyticsService:
                     "cost": round(cost_m, 2),
                     "lastActivity": "14 days ago",
                     "status": "Potentially Unused",
-                    "evidence": explanation,
+                    "evidence": evidence_summary,
                     "action": action,
                     "history": [round(cost_m * 1.05, 1), round(cost_m * 1.03, 1), round(cost_m, 1), round(cost_m, 1), round(cost_m, 1), round(cost_m, 1)]
                 })
