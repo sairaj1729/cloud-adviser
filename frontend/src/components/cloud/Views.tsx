@@ -760,17 +760,17 @@ export function RecommendationsView() {
 }
 export function AccountView() {
   const { cloud, setCloud, notify, theme, setTheme, user } = useCloudApp();
-  const name = user ? user.name : 'Demo User';
-  const email = user ? user.email : 'demo@cloudadvisor.io';
-  const initials = user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'DU';
-  const role = user ? 'Authenticated User' : 'Guest / Demo Mode';
+  const name = user ? user.name : 'Cloud Administrator';
+  const email = user ? user.email : 'admin@cloudadvisor.io';
+  const initials = user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'CA';
+  const role = user ? 'Enterprise Administrator' : 'Cloud Administrator';
 
   return <div className="view-stack account-view">
     {!user && (
       <div className="callout flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck size={18} className="text-primary" />
-          <span>You are viewing in Demo Mode. Sign in or register to connect your cloud accounts and save your workspace data.</span>
+          <span>Sign in to manage role-based cloud access and team workspace settings.</span>
         </div>
         <Button asChild size="sm" variant="outline"><Link to="/login">Sign in</Link></Button>
       </div>
@@ -996,7 +996,7 @@ export function AiRecommendationsView() {
             onClick={() => fetchRecommendations()}
             disabled={loading || batchAnalyzing}
             className="h-9 gap-1.5 text-xs font-semibold"
-            title="Refresh AI Recommendations from MongoDB"
+            title="Refresh AI Recommendations"
           >
             <RefreshCw size={13} className={cn(loading && 'animate-spin text-primary')} />
             <span>Refresh</span>

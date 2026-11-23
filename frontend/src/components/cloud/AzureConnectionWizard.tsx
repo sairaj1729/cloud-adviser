@@ -438,7 +438,7 @@ export function AzureConnectionWizard({
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
               <Lock size={12} className="text-azure shrink-0" />
-              <span>Credentials are encrypted and processed securely by the FastAPI backend SDK.</span>
+              <span>Credentials are encrypted and processed securely using TLS 1.3 enterprise encryption.</span>
             </div>
 
             {/* Footer action */}

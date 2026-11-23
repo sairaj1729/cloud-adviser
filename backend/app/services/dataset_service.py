@@ -31,7 +31,7 @@ DATASET_REGISTRY = {
         "id": "retail_2900",
         "name": "Mid-Market Retail Fleet",
         "domain": "Retail Operations",
-        "description": "Mid-Market Omnichannel Retail (2,900 assets from data.json)",
+        "description": "Mid-Market Omnichannel Retail (2,900 assets across AWS, Azure, GCP)",
         "file": "data.json",
         "item_count": 2900,
         "icon": "Store"

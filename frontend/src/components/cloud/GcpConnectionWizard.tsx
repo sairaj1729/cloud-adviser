@@ -544,7 +544,7 @@ gcloud iam service-accounts keys create gcp-service-account.json \\
                   GCP Project Connected &amp; Verified!
                 </strong>
                 <p className="text-muted-foreground leading-relaxed">
-                  FastAPI successfully verified read-only access to Project ID{' '}
+                  Successfully verified read-only access to Project ID{' '}
                   <code className="text-foreground font-mono bg-emerald-500/10 px-1 py-0.5 rounded text-[11px]">
                     {verifyResult.account.account_identifier}
                   </code>

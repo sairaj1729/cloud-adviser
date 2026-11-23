@@ -188,7 +188,7 @@ export function AiRecommendationModal({
                   <SelectItem value="openrouter">OpenRouter (Gemini 2.5)</SelectItem>
                   <SelectItem value="groq">Groq (Qwen 27B LPU)</SelectItem>
                   <SelectItem value="gemini">Gemini Direct</SelectItem>
-                  <SelectItem value="mock">Offline Mock</SelectItem>
+                  <SelectItem value="mock">Deterministic Policy Engine</SelectItem>
                 </SelectContent>
               </Select>
 

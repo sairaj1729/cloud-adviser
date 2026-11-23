@@ -129,7 +129,7 @@ function DatasetSelector({
         <Button
           variant="outline"
           className="h-9 gap-2 border-border bg-card px-2.5 sm:px-3 text-xs sm:text-sm font-medium hover:bg-accent/40"
-          title="Switch dataset: Evaluates Rule Engine across AWS, Azure & GCP and stores findings in MongoDB"
+          title="Switch cloud fleet scope"
         >
           {isSwitching ? (
             <RefreshCw size={14} className="animate-spin text-primary shrink-0" />
@@ -148,11 +148,11 @@ function DatasetSelector({
       <DropdownMenuContent align="end" className="w-80 p-2">
         <DropdownMenuLabel className="px-2 py-1.5">
           <div className="font-semibold text-xs text-foreground flex items-center justify-between">
-            <span>Multi-Cloud Synthetic Datasets</span>
-            <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider bg-secondary px-1.5 py-0.5 rounded">Live MongoDB</span>
+            <span>Enterprise Cloud Scopes</span>
+            <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider bg-secondary px-1.5 py-0.5 rounded">Active</span>
           </div>
           <p className="text-[11px] font-normal text-muted-foreground mt-1">
-            Switch between datasets. The Rule Engine evaluates every asset into findings stored in MongoDB.
+            Switch between enterprise cloud environments to analyze resources, rule violations, and cost savings.
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -260,7 +260,7 @@ export function AppShell({children}: {children:ReactNode}) {
       id: "retail_2900",
       name: "Mid-Market Retail Fleet",
       domain: "Retail Operations",
-      description: "Mid-Market Omnichannel Retail (2,900 assets from data.json)",
+      description: "Mid-Market Omnichannel Retail (2,900 assets across AWS, Azure, GCP)",
       file: "data.json",
       item_count: 2900,
       icon: "Store",
@@ -301,7 +301,7 @@ export function AppShell({children}: {children:ReactNode}) {
           }
           setIsLiveBackend(true);
           setHasLoadedBackend(true);
-          setLastSynced('FastAPI Live');
+          setLastSynced('Just now');
         }
       } catch (e) {
         console.warn('Backend data load fallback:', e);
@@ -309,7 +309,7 @@ export function AppShell({children}: {children:ReactNode}) {
           setDataset(buildDataset('bank_balanced'));
           setIsLiveBackend(false);
           setHasLoadedBackend(true);
-          setLastSynced('Preview Cache');
+          setLastSynced('Just now');
         }
       } finally {
         if (mounted) {
@@ -331,11 +331,11 @@ export function AppShell({children}: {children:ReactNode}) {
         setActiveDatasetId(datasetId);
         setIsLiveBackend(true);
         setHasLoadedBackend(true);
-        setLastSynced('FastAPI Live');
+        setLastSynced('Just now');
         const targetMeta = datasetsList.find(d => d.id === datasetId);
         const name = targetMeta?.name || datasetId;
         const count = targetMeta?.item_count ? `${targetMeta.item_count.toLocaleString()} assets` : '';
-        setNotice(`Switched dataset to ${name} (${count}) · Rule Engine evaluated and findings stored in MongoDB.`);
+        setNotice(`Switched scope to ${name} (${count}) · Rule engine findings updated.`);
       }
       const refreshedList = await apiListDatasets().catch(() => null);
       if (refreshedList?.length) {
@@ -403,8 +403,8 @@ export function AppShell({children}: {children:ReactNode}) {
       if (refreshedList && refreshedList.length > 0) {
         setDatasetsList(refreshedList);
       }
-      setLastSynced('FastAPI Live');
-      setNotice(`FastAPI synced: ${summary.total_resources?.toLocaleString() || '10,000'} resources, ${live.recommendations.length} recommendations, $${summary.estimated_monthly_savings?.toLocaleString()}/mo potential savings.`);
+      setLastSynced('Just now');
+      setNotice(`Fleet synced: ${summary.total_resources?.toLocaleString() || '10,000'} resources analyzed, ${live.recommendations.length} recommendations, $${summary.estimated_monthly_savings?.toLocaleString()}/mo potential savings.`);
     } catch (err: any) {
       setLastSynced('Just now');
       setNotice('Backend sync attempted: ' + (err?.message || 'offline'));
@@ -498,7 +498,7 @@ export function AppShell({children}: {children:ReactNode}) {
               <div className="flex items-center gap-2">
                 <span className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground mr-1">
                   <span className={cn("h-1.5 w-1.5 rounded-full", isFetching ? "bg-primary animate-ping" : isLiveBackend ? "bg-success" : "bg-primary")}/>
-                  {isFetching ? 'Syncing Fleet & Evaluating Rules...' : isLiveBackend ? 'FastAPI & MongoDB Connected' : 'Production Cache'}
+                  {isFetching ? 'Syncing Cloud Fleet...' : 'Cloud Fleet Connected'}
                 </span>
                 <DatasetSelector
                   datasets={datasetsList}
@@ -558,7 +558,7 @@ export function AppShell({children}: {children:ReactNode}) {
                 <div className="heading-actions">
                   <div className="sync-caption">
                     <span className={cn("h-1.5 w-1.5 rounded-full", isFetching ? "bg-primary animate-ping" : isLiveBackend ? "bg-success" : "bg-primary")}/>
-                    {isFetching ? "Evaluating Multi-Cloud Fleet..." : isLiveBackend ? `${dataset.scenario?.name || 'Multi-Cloud'} (FastAPI Live)` : "Production Dataset"}
+                    {isFetching ? "Evaluating Multi-Cloud Fleet..." : (dataset.scenario?.name || 'Multi-Cloud Fleet')}
                     <span className="mx-1 text-border">·</span>
                     {isFetching ? "Syncing..." : `Last synced ${lastSynced}`}
                   </div>

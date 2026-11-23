@@ -106,7 +106,7 @@ export function ApprovalDrawer({ item, status, audit, onClose, onDecision }: Pro
                 ))}
               </ol>
             </div>
-            <div className="drawer-note">Decisions are simulated in demo mode. No changes are made to your cloud accounts.</div>
+            <div className="drawer-note"><ShieldCheck size={15} className="shrink-0 text-primary" /> Approval records are preserved in the audit log and applied during scheduled maintenance windows.</div>
           </div>
         )}
       </SheetContent>

@@ -31,14 +31,14 @@ export const scenarios: Scenario[] = [
     id: 'retail_2900',
     name: 'Mid-Market Retail Fleet',
     domain: 'Retail Operations',
-    tagline: '2,900 Multi-Cloud Resources (data.json)',
+    tagline: '2,900 Multi-Cloud Assets across AWS, Azure, GCP',
     synthetic: true,
     item_count: 2900
   },
   {
     id: 'production',
     name: 'Production Infrastructure',
-    tagline: '2,900 Multi-Cloud Resources (data.json)',
+    tagline: '2,900 Multi-Cloud Assets across AWS, Azure, GCP',
     synthetic: false,
     item_count: 2900
   }

@@ -194,7 +194,7 @@ export function ConnectionsPanel() {
       };
 
       setConns(c => [...c, newConn]);
-      notify(`${p} connection added and verified with FastAPI backend.`);
+      notify(`${p} connection verified successfully.`);
     } catch (err: any) {
       // Fallback preview
       setConns(c => [...c, {
