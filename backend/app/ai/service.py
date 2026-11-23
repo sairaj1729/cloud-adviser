@@ -138,6 +138,12 @@ class AIRecommendationService:
                             cached_rec["provider"] = str(cached_rec["provider"]).upper()
                         if not cached_rec.get("status"):
                             cached_rec["status"] = "PENDING_APPROVAL"
+                        if not cached_rec.get("resource_type"):
+                            cached_rec["resource_type"] = f.get("resource_type", "compute_instance")
+                        if not cached_rec.get("service") or not cached_rec.get("category"):
+                            from app.services.analytics_service import get_service_name, get_category_name
+                            cached_rec["service"] = get_service_name(cached_rec["resource_type"], cached_rec["provider"])
+                            cached_rec["category"] = get_category_name(cached_rec["resource_type"])
 
                         # Ensure cached recommendation is persisted in db.ai_recommendations!
                         await self.db.ai_recommendations.update_one(

@@ -211,9 +211,13 @@ export function AiRecommendationModal({
               {recommendation.provider}
             </Badge>
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-1 font-mono">
-            Resource: <span className="text-foreground font-semibold">{recommendation.resource}</span> · 
-            Finding ID: <span className="text-foreground">{recommendation.id}</span>
+          <DialogDescription className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+            <span>Resource: <strong className="text-foreground font-mono">{recommendation.resource}</strong></span>
+            <span className="text-[10px] bg-secondary text-foreground px-1.5 py-0.5 rounded border border-border font-medium">
+              {recommendation.service || recommendation.category || 'Compute'}
+            </span>
+            <span>·</span>
+            <span className="font-mono text-muted-foreground">ID: {recommendation.id}</span>
           </DialogDescription>
         </div>
 

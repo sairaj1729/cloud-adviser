@@ -44,11 +44,21 @@ class RecommendationValidator:
         if risk not in cls.VALID_RISKS:
             risk = "LOW"
 
-        # 5. Build clean dictionary
+        # 5. Resource Type, Service Name, and Category
+        from app.services.analytics_service import get_service_name, get_category_name
+        prov = context.get("provider", "AWS")
+        rtype = context.get("resource_type", "compute_instance")
+        sname = get_service_name(rtype, prov)
+        cat_name = get_category_name(rtype)
+
+        # 6. Build clean dictionary
         return {
             "resource_id": context["resource_id"],
             "resource_name": context.get("resource_name"),
-            "provider": context.get("provider", "AWS"),
+            "provider": prov,
+            "resource_type": rtype,
+            "service": sname,
+            "category": cat_name,
             "dataset_id": context.get("dataset_id"),
             "action": action,
             "target_sku": raw.get("target_sku"),

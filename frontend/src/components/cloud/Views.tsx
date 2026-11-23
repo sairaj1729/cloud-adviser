@@ -437,7 +437,7 @@ export function UnusedView() {
            <tr><th>SERVICE</th><th>PROVIDER</th><th>CURRENT COST</th><th>LAST ACTIVITY</th><th>STATUS</th><th></th></tr>
          </thead>
          <tbody>
-           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td className="font-semibold text-foreground">{money(x.cost)}<small>/mo</small></td><td>{x.lastActivity}</td><td><span className={cn('status-pill',x.status==='Potentially Unused'?'status-amber':'status-muted')}>{x.status}</span></td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
+           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small className="flex items-center gap-1.5">{x.service}{x.category && <span className="text-[10px] bg-secondary/80 text-muted-foreground px-1.5 py-0.2 rounded border border-border font-medium">{x.category}</span>}</small></td><td><ProviderBadge provider={x.provider}/></td><td className="font-semibold text-foreground">{money(x.cost)}<small>/mo</small></td><td>{x.lastActivity}</td><td><span className={cn('status-pill',x.status==='Potentially Unused'?'status-amber':'status-muted')}>{x.status}</span></td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
          </tbody>
        </table>
        {!rows.length&&<Empty text={`No unused services found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
@@ -447,7 +447,7 @@ export function UnusedView() {
    <FindingDrawer item={selected} onClose={()=>setSelected(null)}/>
  </div>;
 }
-function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.service} · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3>{item.evidence?.includes(' | ') ? (<div className="space-y-1.5 mt-2">{item.evidence.split(' | ').map((part, idx) => (<div key={idx} className="flex items-center gap-2 text-xs text-foreground font-mono bg-secondary/60 px-2.5 py-1.5 rounded border border-border/70"><span className="w-1.5 h-1.5 rounded-full bg-primary flex-none" /><span>{part}</span></div>))}</div>) : (<p>{item.evidence}</p>)}</div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
+function FindingDrawer({item,onClose}: {item:Finding|null;onClose:()=>void}) {return <Sheet open={!!item} onOpenChange={open=>!open&&onClose()}><SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]"><SheetHeader><div className="drawer-kicker">SERVICE REVIEW</div><SheetTitle>{item?.name}</SheetTitle><SheetDescription>{item?.name} · <span className="text-foreground font-medium">{item?.category || item?.service}</span> · {item?.provider}</SheetDescription></SheetHeader>{item&&<div className="drawer-body"><span className="status-pill status-amber">{item.status}</span><div className="drawer-metrics"><div><small>MONTHLY COST</small><strong>{money(item.cost)}</strong></div><div><small>LAST ACTIVITY</small><strong className="text-base">{item.lastActivity}</strong></div></div><div className="drawer-section"><h3>Cost history</h3><div className="history-bars">{item.history.map((v,i)=><div key={i}><span style={{height:`${v/Math.max(...item.history)*85}%`}}/><small>{['May','Jun','Jul','Aug','Sep','Oct'][i]}</small></div>)}</div></div><div className="drawer-section"><h3>Activity & evidence</h3>{item.evidence?.includes(' | ') ? (<div className="space-y-1.5 mt-2">{item.evidence.split(' | ').map((part, idx) => (<div key={idx} className="flex items-center gap-2 text-xs text-foreground font-mono bg-secondary/60 px-2.5 py-1.5 rounded border border-border/70"><span className="w-1.5 h-1.5 rounded-full bg-primary flex-none" /><span>{part}</span></div>))}</div>) : (<p>{item.evidence}</p>)}</div><div className="drawer-section"><h3>Recommendation</h3><p>{item.action}</p></div><div className="drawer-note"><Info size={15}/> Activity is an indicator, not proof. Always validate before making changes.</div></div>}</SheetContent></Sheet>}
 export function UtilizationView() {
  const {providerMeta,resources}=useDataset();
  const {cloud,setCloud,isFetching}=useCloudApp();
@@ -502,7 +502,7 @@ export function UtilizationView() {
            <tr><th>RESOURCE</th><th>PROVIDER</th><th>CPU</th><th>MEMORY</th><th>COST</th><th>EST. SAVINGS</th><th></th></tr>
          </thead>
          <tbody>
-           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small>{x.service}</small></td><td><ProviderBadge provider={x.provider}/></td><td><span className="metric-with-bar">{x.cpu}%<i><b style={{width:`${x.cpu}%`}}/></i></span></td><td><span className="metric-with-bar">{x.memory}%<i><b style={{width:`${x.memory}%`}}/></i></span></td><td className="text-foreground">{money(x.cost)}</td><td className="text-success font-semibold">{money(x.savings)}/mo</td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
+           {rows.slice((page-1)*5,page*5).map(x=><tr key={x.id} className="clickable-row" onClick={()=>setSelected(x)}><td><strong className="text-foreground font-medium block">{x.name}</strong><small className="flex items-center gap-1.5">{x.service}{x.category && <span className="text-[10px] bg-secondary/80 text-muted-foreground px-1.5 py-0.2 rounded border border-border font-medium">{x.category}</span>}</small></td><td><ProviderBadge provider={x.provider}/></td><td><span className="metric-with-bar">{x.cpu}%<i><b style={{width:`${x.cpu}%`}}/></i></span></td><td><span className="metric-with-bar">{x.memory}%<i><b style={{width:`${x.memory}%`}}/></i></span></td><td className="text-foreground">{money(x.cost)}</td><td className="text-success font-semibold">{money(x.savings)}/mo</td><td><Button variant="ghost" size="icon" aria-label={`View ${x.name}`} onClick={e=>{e.stopPropagation();setSelected(x)}}><ArrowRight size={16}/></Button></td></tr>)}
          </tbody>
        </table>
        {!rows.length&&<Empty text={`No underutilized resources found for ${filter === 'All' ? 'your filters' : filter}.`}/>}
@@ -511,7 +511,7 @@ export function UtilizationView() {
    </section>
    <Sheet open={!!selected} onOpenChange={open=>!open&&setSelected(null)}>
      <SheetContent className="detail-drawer overflow-y-auto w-full sm:max-w-[480px]">
-       <SheetHeader><div className="drawer-kicker">RESOURCE REVIEW</div><SheetTitle>{selected?.name}</SheetTitle><SheetDescription>{selected?.service} · {selected?.provider}</SheetDescription></SheetHeader>
+       <SheetHeader><div className="drawer-kicker">RESOURCE REVIEW</div><SheetTitle>{selected?.name}</SheetTitle><SheetDescription>{selected?.name} · <span className="text-foreground font-medium">{selected?.category || selected?.service}</span> · {selected?.provider}</SheetDescription></SheetHeader>
        {selected&&<div className="drawer-body"><div className="drawer-metrics"><div><small>CPU UTILIZATION</small><strong>{selected.cpu}%</strong></div><div><small>MEMORY UTILIZATION</small><strong>{selected.memory}%</strong></div></div><div className="drawer-section"><h3>Estimated impact</h3><p>Current cost: {money(selected.cost)}/month. Estimated savings: {money(selected.savings)}/month.</p></div><div className="drawer-section"><h3>Suggested action</h3><p>{selected.recommendation}. Validate peak usage and performance requirements first.</p></div></div>}
      </SheetContent>
    </Sheet>
@@ -642,7 +642,13 @@ export function RecommendationsView() {
             </div>
 
             <h3>{r.title}</h3>
-            <div className="rec-resource"><ProviderBadge provider={r.provider}/><span>{r.resource}</span></div>
+            <div className="rec-resource">
+              <ProviderBadge provider={r.provider}/>
+              <span className="truncate max-w-[200px]">{r.resource}</span>
+              <span className="text-[10px] bg-secondary/80 text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium ml-auto shrink-0">
+                {r.service || r.category || 'Compute'}
+              </span>
+            </div>
             <p className="rec-problem">{r.problem}</p>
             <div className="rec-evidence"><span>EVIDENCE</span><p>{r.evidence}</p></div>
             <div className="rec-card-bottom">
@@ -675,12 +681,17 @@ export function RecommendationsView() {
         <SheetHeader>
           <div className="drawer-kicker">RULE ENGINE FINDING</div>
           <SheetTitle>{selected?.title}</SheetTitle>
-          <SheetDescription>{selected?.resource} · {selected?.provider}</SheetDescription>
+          <SheetDescription>
+            {selected?.resource} · <span className="text-foreground font-medium">{selected?.service || selected?.category || 'Compute'}</span> · {selected?.provider}
+          </SheetDescription>
         </SheetHeader>
         {selected&&<div className="drawer-body space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span>
             <span className="status-pill status-muted">{selected.confidence}% confidence</span>
+            <span className="text-[11px] bg-secondary text-foreground px-2 py-0.5 rounded border border-border font-medium">
+              {selected.category || selected.service || 'Compute'}
+            </span>
           </div>
           <div className="drawer-metrics">
             <div><small>CURRENT COST</small><strong>{money(selected.cost)}</strong></div>
@@ -1219,9 +1230,14 @@ export function AiRecommendationsView() {
                   </div>
 
                   {/* Resource Identity */}
-                  <h3 className="font-semibold text-foreground text-sm truncate" title={item.resource_name || item.resource_id}>
-                    {item.resource_name || item.resource_id}
-                  </h3>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <h3 className="font-semibold text-foreground text-sm truncate" title={item.resource_name || item.resource_id}>
+                      {item.resource_name || item.resource_id}
+                    </h3>
+                    <span className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded border border-border shrink-0 font-medium">
+                      {item.service || item.category || (item.resource_type ? item.resource_type.replace(/_/g, ' ') : 'Compute')}
+                    </span>
+                  </div>
                   <div className="text-[11px] font-mono text-muted-foreground truncate mb-2.5">
                     {item.resource_id}
                   </div>

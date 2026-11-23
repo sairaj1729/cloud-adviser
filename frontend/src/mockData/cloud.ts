@@ -866,7 +866,7 @@ export const services: Record<Cloud, Service[]> = {
   ]
 };
 
-export type Finding = { id: string; name: string; provider: Cloud; service: string; cost: number; lastActivity: string; status: string; evidence: string; action: string; history: number[] };
+export type Finding = { id: string; name: string; provider: Cloud; service: string; resource_type?: string; category?: string; cost: number; lastActivity: string; status: string; evidence: string; action: string; history: number[] };
 export const unused: Finding[] = [
   {
     "id": "u1",
@@ -1839,7 +1839,7 @@ export const unused: Finding[] = [
   }
 ];
 
-export type Resource = { id: string; name: string; provider: Cloud; service: string; cpu: number; memory: number; cost: number; savings: number; recommendation: string };
+export type Resource = { id: string; name: string; provider: Cloud; service: string; resource_type?: string; category?: string; cpu: number; memory: number; cost: number; savings: number; recommendation: string };
 export const resources: Resource[] = [
   {
     "id": "r1",
@@ -4676,6 +4676,9 @@ export type Recommendation = {
   provider: Cloud; 
   resource: string; 
   resource_id?: string;
+  resource_type?: string;
+  service?: string;
+  category?: string;
   problem: string; 
   evidence: string; 
   savings: number; 

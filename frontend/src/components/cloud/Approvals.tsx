@@ -44,11 +44,20 @@ export function ApprovalDrawer({ item, status, audit, onClose, onDecision }: Pro
         <SheetHeader>
           <div className="drawer-kicker">HUMAN REVIEW</div>
           <SheetTitle>{item?.title}</SheetTitle>
-          <SheetDescription>{item?.resource} · {item?.provider}</SheetDescription>
+          <SheetDescription>
+            {item?.resource} · <span className="text-foreground font-medium">{item?.service || item?.category || 'Compute'}</span> · {item?.provider}
+          </SheetDescription>
         </SheetHeader>
         {item && meta && (
           <div className="drawer-body">
-            <div className="flex flex-wrap items-center gap-2"><StatusPill status={status} /><ProviderBadge provider={item.provider} /><span className="text-xs text-muted-foreground">{meta.signoff}</span></div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill status={status} />
+              <ProviderBadge provider={item.provider} />
+              <span className="text-xs bg-secondary text-foreground px-2 py-0.5 rounded border border-border font-medium">
+                {item.category || item.service || 'Compute'}
+              </span>
+              <span className="text-xs text-muted-foreground">{meta.signoff}</span>
+            </div>
 
             <div className="drawer-metrics">
               <div><small>POTENTIAL SAVINGS</small><strong className="text-success">{money(item.savings)}</strong></div>

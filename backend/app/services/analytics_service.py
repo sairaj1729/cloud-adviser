@@ -52,6 +52,59 @@ def get_service_name(rtype: str, prov: str) -> str:
     m = NAME_MAP.get(rtype, {})
     return m.get(prov, rtype.replace("_", " ").title())
 
+CATEGORY_MAP = {
+    "compute_instance": "Compute",
+    "serverless_container": "Compute",
+    "serverless_function": "Compute",
+    "app_service": "Compute",
+    "app_engine_app": "Compute",
+    "kubernetes_cluster": "Containers & Kubernetes",
+    "container_registry": "Containers & Kubernetes",
+    "database": "Databases",
+    "nosql_table": "Databases",
+    "cache_cluster": "Databases",
+    "data_warehouse": "Analytics",
+    "etl_job": "Analytics",
+    "block_storage": "Storage",
+    "object_storage": "Storage",
+    "network_egress": "Networking",
+    "load_balancer": "Networking",
+    "nat_gateway": "Networking",
+    "virtual_network": "Networking",
+    "public_ip": "Networking",
+    "cdn_distribution": "Networking",
+    "log_group": "Management & Monitoring",
+    "monitoring_workspace": "Management & Monitoring",
+    "key_vault": "Security & Identity",
+    "encryption_key": "Security & Identity",
+    "secret": "Security & Identity",
+    "web_acl": "Security & Identity",
+    "security_policy": "Security & Identity",
+    "workflow": "Application Integration",
+    "message_topic": "Application Integration",
+    "event_stream": "Application Integration",
+    "api_gateway": "Application Integration",
+    "ml_endpoint": "AI & Machine Learning",
+    "ai_platform": "AI & Machine Learning",
+    "cognitive_account": "AI & Machine Learning",
+    "email_service": "Communication",
+    "communication_service": "Communication",
+}
+
+def get_category_name(rtype: str) -> str:
+    rtype_l = str(rtype or "").lower()
+    if rtype_l in CATEGORY_MAP:
+        return CATEGORY_MAP[rtype_l]
+    if "ec2" in rtype_l or "vm" in rtype_l or "compute" in rtype_l:
+        return "Compute"
+    if "db" in rtype_l or "sql" in rtype_l or "rds" in rtype_l:
+        return "Databases"
+    if "disk" in rtype_l or "ebs" in rtype_l or "storage" in rtype_l or "blob" in rtype_l or "bucket" in rtype_l:
+        return "Storage"
+    if "eks" in rtype_l or "aks" in rtype_l or "gke" in rtype_l or "container" in rtype_l:
+        return "Containers & Kubernetes"
+    return "Cloud Resource"
+
 def format_evidence_summary(finding: Dict[str, Any]) -> str:
     """
     Synthesize concrete, quantitative metrics and policy thresholds for the evidence section,
@@ -241,6 +294,11 @@ class AnalyticsService:
             ai_data = f.get("ai_recommendation") or ai_recs_by_res.get(res_id_val)
             evidence_summary = format_evidence_summary(f)
 
+            # Categorize into Service and Resource Category
+            rtype = f.get("resource_type") or ("compute_instance" if "EC2" in rule_id or "VM" in rule_id else "database" if "RDS" in rule_id or "SQL" in rule_id else "block_storage")
+            sname = get_service_name(rtype, prov)
+            cat_name = get_category_name(rtype)
+
             # Format Recommendation
             recommendations.append({
                 "id": fid,
@@ -248,6 +306,9 @@ class AnalyticsService:
                 "provider": prov,
                 "resource": rname,
                 "resource_id": res_id_val,
+                "resource_type": rtype,
+                "service": sname,
+                "category": cat_name,
                 "problem": explanation,
                 "evidence": evidence_summary,
                 "savings": round(savings_m, 2),
@@ -259,16 +320,14 @@ class AnalyticsService:
                 "ai_recommendation": ai_data
             })
 
-            # Categorize into Underutilized or Unused
-            rtype = f.get("resource_type") or ("compute_instance" if "EC2" in rule_id or "VM" in rule_id else "database" if "RDS" in rule_id or "SQL" in rule_id else "block_storage")
-            sname = get_service_name(rtype, prov)
-
             if rec_type in ["CLEANUP_REVIEW", "STOP_REVIEW"] or "EBS" in rule_id or "DISK" in rule_id or "002" in rule_id:
                 unused_services.append({
                     "id": fid,
                     "name": rname,
                     "provider": prov,
                     "service": sname,
+                    "resource_type": rtype,
+                    "category": cat_name,
                     "cost": round(cost_m, 2),
                     "lastActivity": "14 days ago",
                     "status": "Potentially Unused",
@@ -294,6 +353,8 @@ class AnalyticsService:
                     "name": rname,
                     "provider": prov,
                     "service": f"{sname} · {sku}",
+                    "resource_type": rtype,
+                    "category": cat_name,
                     "cpu": round(cpu_val, 1),
                     "memory": round(mem_val, 1),
                     "cost": round(cost_m, 2),
