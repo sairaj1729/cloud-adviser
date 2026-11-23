@@ -13,7 +13,7 @@ import {
   apiUpdateAIRecommendationStatus,
   type AIRecommendationData 
 } from '@/config/api';
-import { money, type Recommendation, type Cloud as CloudType } from '@/mockData/cloud';
+import { money, getCategoryForRecommendation, getServiceForRecommendation, type Recommendation, type Cloud as CloudType } from '@/mockData/cloud';
 
 interface AiRecommendationModalProps {
   open: boolean;
@@ -214,14 +214,10 @@ export function AiRecommendationModal({
           <DialogDescription className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
             <span>Resource: <strong className="text-foreground font-mono">{recommendation.resource}</strong></span>
             <span className="text-[10px] bg-secondary/90 text-foreground px-2 py-0.5 rounded border border-border font-semibold">
-              {aiData?.category || recommendation.category || 'Compute'}
+              {getCategoryForRecommendation(aiData || recommendation)}
             </span>
-            {(aiData?.service || recommendation.service) && (
-              <>
-                <span>·</span>
-                <span className="text-foreground/90 font-medium">{aiData?.service || recommendation.service}</span>
-              </>
-            )}
+            <span>·</span>
+            <span className="text-foreground/90 font-medium">{getServiceForRecommendation(aiData || recommendation)}</span>
             <span>·</span>
             <span className="font-mono text-muted-foreground">ID: {recommendation.id}</span>
           </DialogDescription>
@@ -260,15 +256,13 @@ export function AiRecommendationModal({
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground font-medium">Category:</span>
                   <span className="px-2 py-0.5 rounded font-semibold bg-secondary text-foreground border border-border text-[11px]">
-                    {aiData.category || recommendation.category || 'Compute'}
+                    {getCategoryForRecommendation(aiData || recommendation)}
                   </span>
                 </div>
-                {(aiData.service || recommendation.service) && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground font-medium">Cloud Service:</span>
-                    <strong className="text-foreground font-semibold">{aiData.service || recommendation.service}</strong>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Cloud Service:</span>
+                  <strong className="text-foreground font-semibold">{getServiceForRecommendation(aiData || recommendation)}</strong>
+                </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <span>Provider:</span>
                   <strong className="text-foreground font-sans font-medium">{aiData.provider || recommendation.provider}</strong>

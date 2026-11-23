@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { money, type Recommendation } from '@/mockData/cloud';
+import { money, getCategoryForRecommendation, getServiceForRecommendation, type Recommendation } from '@/mockData/cloud';
 import { reviewMeta, rejectReasons, snoozeOptions, type ApprovalStatus, type AuditEvent } from '@/mockData/approvals';
 import { ProviderBadge } from './AppShell';
 import { cn } from '@/lib/utils';
@@ -45,7 +45,7 @@ export function ApprovalDrawer({ item, status, audit, onClose, onDecision }: Pro
           <div className="drawer-kicker">HUMAN REVIEW</div>
           <SheetTitle>{item?.title}</SheetTitle>
           <SheetDescription>
-            {item?.resource} · <span className="text-foreground font-medium">{item?.category || 'Compute'}</span>{item?.service && <span> ({item?.service})</span>} · {item?.provider}
+            {item?.resource} · <span className="text-foreground font-medium">{item ? `${getServiceForRecommendation(item)} (${getCategoryForRecommendation(item)})` : 'Service'}</span> · {item?.provider}
           </SheetDescription>
         </SheetHeader>
         {item && meta && (
@@ -54,13 +54,11 @@ export function ApprovalDrawer({ item, status, audit, onClose, onDecision }: Pro
               <StatusPill status={status} />
               <ProviderBadge provider={item.provider} />
               <span className="text-xs bg-secondary text-foreground px-2 py-0.5 rounded border border-border font-semibold">
-                {item.category || 'Compute'}
+                {getCategoryForRecommendation(item)}
               </span>
-              {item.service && (
-                <span className="text-xs text-muted-foreground font-medium">
-                  {item.service}
-                </span>
-              )}
+              <span className="text-xs text-muted-foreground font-medium">
+                {getServiceForRecommendation(item)}
+              </span>
               <span className="text-xs text-muted-foreground">{meta.signoff}</span>
             </div>
 

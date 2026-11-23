@@ -4689,6 +4689,73 @@ export type Recommendation = {
   status?: string;
   ai_recommendation?: any;
 };
+
+export function getCategoryForRecommendation(r?: {
+  category?: string;
+  service?: string;
+  title?: string;
+  resource?: string;
+  resource_type?: string;
+  problem?: string;
+}): string {
+  if (!r) return 'Compute';
+  if (r.category && r.category.trim()) return r.category;
+  
+  const str = `${r.resource_type || ''} ${r.service || ''} ${r.title || ''} ${r.resource || ''} ${r.problem || ''}`.toLowerCase();
+  
+  if (str.includes('kubernetes') || str.includes('gke') || str.includes('eks') || str.includes('aks') || str.includes('container')) {
+    return 'Containers & Kubernetes';
+  }
+  if (str.includes('database') || str.includes('sql') || str.includes('rds') || str.includes('postgres') || str.includes('mysql') || str.includes('dynamodb') || str.includes('cosmos') || str.includes('redis') || str.includes('cache')) {
+    return 'Databases';
+  }
+  if (str.includes('storage') || str.includes('bucket') || str.includes('blob') || str.includes('ebs') || str.includes('disk') || str.includes('volume') || str.includes('s3')) {
+    return 'Storage';
+  }
+  if (str.includes('network') || str.includes('vpc') || str.includes('vnet') || str.includes('load balancer') || str.includes('gateway') || str.includes('egress') || str.includes('nat')) {
+    return 'Networking';
+  }
+  if (str.includes('analytics') || str.includes('warehouse') || str.includes('bigquery') || str.includes('redshift') || str.includes('synapse') || str.includes('glue')) {
+    return 'Analytics';
+  }
+  if (str.includes('ec2') || str.includes('vm') || str.includes('virtual machine') || str.includes('compute') || str.includes('fargate') || str.includes('app service') || str.includes('lambda')) {
+    return 'Compute';
+  }
+  return 'Compute';
+}
+
+export function getServiceForRecommendation(r?: {
+  service?: string;
+  category?: string;
+  title?: string;
+  resource?: string;
+  provider?: string;
+}): string {
+  if (!r) return 'Cloud Service';
+  if (r.service && r.service.trim()) return r.service;
+  
+  const prov = (r.provider || 'AWS').toUpperCase();
+  const str = `${r.title || ''} ${r.resource || ''}`.toLowerCase();
+  
+  if (str.includes('gke') || str.includes('google kubernetes')) return 'Google Kubernetes Engine (GKE)';
+  if (str.includes('eks') || str.includes('amazon eks')) return 'Amazon EKS';
+  if (str.includes('aks') || str.includes('azure kubernetes')) return 'Azure Kubernetes (AKS)';
+  if (str.includes('rds') || str.includes('amazon rds')) return 'Amazon RDS';
+  if (str.includes('cloud sql')) return 'Cloud SQL';
+  if (str.includes('azure sql') || str.includes('sql database')) return 'Azure SQL Database';
+  if (str.includes('s3') || str.includes('amazon s3')) return 'Amazon S3';
+  if (str.includes('blob storage') || str.includes('blob')) return 'Blob Storage';
+  if (str.includes('cloud storage')) return 'Cloud Storage';
+  if (str.includes('ebs') || str.includes('elastic block')) return 'Amazon EBS';
+  if (str.includes('persistent disk')) return 'Persistent Disk';
+  if (str.includes('managed disk')) return 'Managed Disks';
+  if (str.includes('virtual machine') || str.includes('vm-')) return prov === 'AZURE' ? 'Virtual Machines' : prov === 'GCP' ? 'Compute Engine' : 'Amazon EC2';
+  if (str.includes('compute engine') || str.includes('gce-')) return 'Compute Engine';
+  if (str.includes('ec2') || str.includes('i-')) return 'Amazon EC2';
+  
+  return prov === 'AWS' ? 'Amazon EC2' : prov === 'AZURE' ? 'Virtual Machines' : 'Compute Engine';
+}
+
 export const recommendations: Recommendation[] = [
   {
     "id": "rec1",
@@ -4701,7 +4768,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 56
+    "cost": 56,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec2",
@@ -4714,7 +4784,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 174
+    "cost": 174,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec3",
@@ -4727,7 +4800,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 153
+    "cost": 153,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec4",
@@ -4740,7 +4816,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 346
+    "cost": 346,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec5",
@@ -4753,7 +4832,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 53
+    "cost": 53,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec6",
@@ -4766,7 +4848,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 162
+    "cost": 162,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec7",
@@ -4779,7 +4864,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 161
+    "cost": 161,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec8",
@@ -4792,7 +4880,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 305
+    "cost": 305,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec9",
@@ -4805,7 +4896,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 85
+    "cost": 85,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec10",
@@ -4818,7 +4912,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 41
+    "cost": 41,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec11",
@@ -4831,7 +4928,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 43
+    "cost": 43,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec12",
@@ -4844,7 +4944,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 183
+    "cost": 183,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec13",
@@ -4857,7 +4960,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 340
+    "cost": 340,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec14",
@@ -4870,7 +4976,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize retail-orders-db-prod (Standard) to a more cost-effective instance class.",
-    "cost": 30
+    "cost": 30,
+    "service": "Amazon RDS",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec15",
@@ -4883,7 +4992,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 73
+    "cost": 73,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec16",
@@ -4896,7 +5008,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 33
+    "cost": 33,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec17",
@@ -4909,7 +5024,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 64
+    "cost": 64,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec18",
@@ -4922,7 +5040,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 113
+    "cost": 113,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec19",
@@ -4935,7 +5056,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 26
+    "cost": 26,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec20",
@@ -4948,7 +5072,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 519
+    "cost": 519,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec21",
@@ -4961,7 +5088,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 201
+    "cost": 201,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec22",
@@ -4974,7 +5104,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 155
+    "cost": 155,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec23",
@@ -4987,7 +5120,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 289
+    "cost": 289,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec24",
@@ -5000,7 +5136,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize retail-orders-db-prod (Standard) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Amazon RDS",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec25",
@@ -5013,7 +5152,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 34
+    "cost": 34,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec26",
@@ -5026,7 +5168,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 97
+    "cost": 97,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec27",
@@ -5039,7 +5184,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 91
+    "cost": 91,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec28",
@@ -5052,7 +5200,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 171
+    "cost": 171,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec29",
@@ -5065,7 +5216,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 26
+    "cost": 26,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec30",
@@ -5078,7 +5232,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 288
+    "cost": 288,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec31",
@@ -5091,7 +5248,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 454
+    "cost": 454,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec32",
@@ -5104,7 +5264,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 27
+    "cost": 27,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec33",
@@ -5117,7 +5280,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 73
+    "cost": 73,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec34",
@@ -5130,7 +5296,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 40
+    "cost": 40,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec35",
@@ -5143,7 +5312,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 72
+    "cost": 72,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec36",
@@ -5156,7 +5328,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 155
+    "cost": 155,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec37",
@@ -5169,7 +5344,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 186
+    "cost": 186,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec38",
@@ -5182,7 +5360,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 178
+    "cost": 178,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec39",
@@ -5195,7 +5376,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 192
+    "cost": 192,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec40",
@@ -5208,7 +5392,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 369
+    "cost": 369,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec41",
@@ -5221,7 +5408,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 67
+    "cost": 67,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec42",
@@ -5234,7 +5424,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 32
+    "cost": 32,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec43",
@@ -5247,7 +5440,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 42
+    "cost": 42,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec44",
@@ -5260,7 +5456,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 99
+    "cost": 99,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec45",
@@ -5273,7 +5472,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 169
+    "cost": 169,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec46",
@@ -5286,7 +5488,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 158
+    "cost": 158,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec47",
@@ -5299,7 +5504,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 151
+    "cost": 151,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec48",
@@ -5312,7 +5520,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 282
+    "cost": 282,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec49",
@@ -5325,7 +5536,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 27
+    "cost": 27,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec50",
@@ -5338,7 +5552,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 68
+    "cost": 68,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec51",
@@ -5351,7 +5568,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 34
+    "cost": 34,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec52",
@@ -5364,7 +5584,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 47
+    "cost": 47,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec53",
@@ -5377,7 +5600,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 96
+    "cost": 96,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec54",
@@ -5390,7 +5616,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 189
+    "cost": 189,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec55",
@@ -5403,7 +5632,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 159
+    "cost": 159,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec56",
@@ -5416,7 +5648,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 155
+    "cost": 155,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec57",
@@ -5429,7 +5664,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 334
+    "cost": 334,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec58",
@@ -5442,7 +5680,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 27
+    "cost": 27,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec59",
@@ -5455,7 +5696,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 75
+    "cost": 75,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec60",
@@ -5468,7 +5712,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 37
+    "cost": 37,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec61",
@@ -5481,7 +5728,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 49
+    "cost": 49,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec62",
@@ -5494,7 +5744,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 96
+    "cost": 96,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec63",
@@ -5507,7 +5760,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 171
+    "cost": 171,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec64",
@@ -5520,7 +5776,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 163
+    "cost": 163,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec65",
@@ -5533,7 +5792,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 166
+    "cost": 166,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec66",
@@ -5546,7 +5808,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 351
+    "cost": 351,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec67",
@@ -5559,7 +5824,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 28
+    "cost": 28,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec68",
@@ -5572,7 +5840,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 78
+    "cost": 78,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec69",
@@ -5585,7 +5856,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 43
+    "cost": 43,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec70",
@@ -5598,7 +5872,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 101
+    "cost": 101,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec71",
@@ -5611,7 +5888,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 193
+    "cost": 193,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec72",
@@ -5624,7 +5904,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 346
+    "cost": 346,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec73",
@@ -5637,7 +5920,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 27
+    "cost": 27,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec74",
@@ -5650,7 +5936,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 72
+    "cost": 72,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec75",
@@ -5663,7 +5952,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec76",
@@ -5676,7 +5968,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 45
+    "cost": 45,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec77",
@@ -5689,7 +5984,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 100
+    "cost": 100,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec78",
@@ -5702,7 +6000,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 193
+    "cost": 193,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec79",
@@ -5715,7 +6016,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 156
+    "cost": 156,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec80",
@@ -5728,7 +6032,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 174
+    "cost": 174,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec81",
@@ -5741,7 +6048,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 331
+    "cost": 331,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec82",
@@ -5754,7 +6064,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec83",
@@ -5767,7 +6080,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 88
+    "cost": 88,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec84",
@@ -5780,7 +6096,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 49
+    "cost": 49,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec85",
@@ -5793,7 +6112,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 47
+    "cost": 47,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec86",
@@ -5806,7 +6128,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 248
+    "cost": 248,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec87",
@@ -5819,7 +6144,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 237
+    "cost": 237,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec88",
@@ -5832,7 +6160,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 436
+    "cost": 436,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec89",
@@ -5845,7 +6176,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 35
+    "cost": 35,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec90",
@@ -5858,7 +6192,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 89
+    "cost": 89,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec91",
@@ -5871,7 +6208,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 42
+    "cost": 42,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec92",
@@ -5884,7 +6224,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 48
+    "cost": 48,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec93",
@@ -5897,7 +6240,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 107
+    "cost": 107,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec94",
@@ -5910,7 +6256,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 215
+    "cost": 215,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec95",
@@ -5923,7 +6272,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 189
+    "cost": 189,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec96",
@@ -5936,7 +6288,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 404
+    "cost": 404,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec97",
@@ -5949,7 +6304,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize ml-train-gpu-01 (g4dn.xlarge) to a more cost-effective instance class.",
-    "cost": 198
+    "cost": 198,
+    "service": "Amazon EC2",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec98",
@@ -5962,7 +6320,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 31
+    "cost": 31,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec99",
@@ -5975,7 +6336,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 84
+    "cost": 84,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec100",
@@ -5988,7 +6352,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 40
+    "cost": 40,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec101",
@@ -6001,7 +6368,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 44
+    "cost": 44,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec102",
@@ -6014,7 +6384,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 106
+    "cost": 106,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec103",
@@ -6027,7 +6400,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 213
+    "cost": 213,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec104",
@@ -6040,7 +6416,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 138
+    "cost": 138,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec105",
@@ -6053,7 +6432,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 260
+    "cost": 260,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec106",
@@ -6066,7 +6448,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize ml-train-gpu-01 (g4dn.xlarge) to a more cost-effective instance class.",
-    "cost": 66
+    "cost": 66,
+    "service": "Amazon EC2",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec107",
@@ -6079,7 +6464,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 31
+    "cost": 31,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec108",
@@ -6092,7 +6480,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 88
+    "cost": 88,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec109",
@@ -6105,7 +6496,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 47
+    "cost": 47,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec110",
@@ -6118,7 +6512,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 46
+    "cost": 46,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec111",
@@ -6131,7 +6528,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 104
+    "cost": 104,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec112",
@@ -6144,7 +6544,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 224
+    "cost": 224,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec113",
@@ -6157,7 +6560,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 153
+    "cost": 153,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec114",
@@ -6170,7 +6576,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 144
+    "cost": 144,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec115",
@@ -6183,7 +6592,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 307
+    "cost": 307,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec116",
@@ -6196,7 +6608,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 28
+    "cost": 28,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec117",
@@ -6209,7 +6624,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 83
+    "cost": 83,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec118",
@@ -6222,7 +6640,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 39
+    "cost": 39,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec119",
@@ -6235,7 +6656,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 41
+    "cost": 41,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec120",
@@ -6248,7 +6672,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 41
+    "cost": 41,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec121",
@@ -6261,7 +6688,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 61
+    "cost": 61,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec122",
@@ -6274,7 +6704,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 119
+    "cost": 119,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec123",
@@ -6287,7 +6720,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 25
+    "cost": 25,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec124",
@@ -6300,7 +6736,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 389
+    "cost": 389,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec125",
@@ -6313,7 +6752,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 252
+    "cost": 252,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec126",
@@ -6326,7 +6768,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 126
+    "cost": 126,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec127",
@@ -6339,7 +6784,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 129
+    "cost": 129,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec128",
@@ -6352,7 +6800,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 134
+    "cost": 134,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec129",
@@ -6365,7 +6816,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 278
+    "cost": 278,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec130",
@@ -6378,7 +6832,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize retail-orders-db-prod (Standard) to a more cost-effective instance class.",
-    "cost": 37
+    "cost": 37,
+    "service": "Amazon RDS",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec131",
@@ -6391,7 +6848,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 42
+    "cost": 42,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec132",
@@ -6404,7 +6864,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 107
+    "cost": 107,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec133",
@@ -6417,7 +6880,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 53
+    "cost": 53,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec134",
@@ -6430,7 +6896,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 57
+    "cost": 57,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec135",
@@ -6443,7 +6912,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 56
+    "cost": 56,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec136",
@@ -6456,7 +6928,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 93
+    "cost": 93,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec137",
@@ -6469,7 +6944,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 175
+    "cost": 175,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec138",
@@ -6482,7 +6960,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 32
+    "cost": 32,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec139",
@@ -6495,7 +6976,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 331
+    "cost": 331,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec140",
@@ -6508,7 +6992,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 183
+    "cost": 183,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec141",
@@ -6521,7 +7008,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 175
+    "cost": 175,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec142",
@@ -6534,7 +7024,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 375
+    "cost": 375,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec143",
@@ -6547,7 +7040,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize retail-orders-db-prod (Standard) to a more cost-effective instance class.",
-    "cost": 37
+    "cost": 37,
+    "service": "Amazon RDS",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec144",
@@ -6560,7 +7056,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 28
+    "cost": 28,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec145",
@@ -6573,7 +7072,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 70
+    "cost": 70,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec146",
@@ -6586,7 +7088,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 35
+    "cost": 35,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec147",
@@ -6599,7 +7104,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec148",
@@ -6612,7 +7120,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec149",
@@ -6625,7 +7136,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 90
+    "cost": 90,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec150",
@@ -6638,7 +7152,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 183
+    "cost": 183,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec151",
@@ -6651,7 +7168,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 199
+    "cost": 199,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec152",
@@ -6664,7 +7184,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 567
+    "cost": 567,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec153",
@@ -6677,7 +7200,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 223
+    "cost": 223,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec154",
@@ -6690,7 +7216,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 117
+    "cost": 117,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec155",
@@ -6703,7 +7232,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 118
+    "cost": 118,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec156",
@@ -6716,7 +7248,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 116
+    "cost": 116,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec157",
@@ -6729,7 +7264,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 129
+    "cost": 129,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec158",
@@ -6742,7 +7280,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 262
+    "cost": 262,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec159",
@@ -6755,7 +7296,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize retail-orders-db-prod (Standard) to a more cost-effective instance class.",
-    "cost": 33
+    "cost": 33,
+    "service": "Amazon RDS",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec160",
@@ -6768,7 +7312,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 59
+    "cost": 59,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec161",
@@ -6781,7 +7328,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 30
+    "cost": 30,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec162",
@@ -6794,7 +7344,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 32
+    "cost": 32,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec163",
@@ -6807,7 +7360,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 33
+    "cost": 33,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec164",
@@ -6820,7 +7376,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 79
+    "cost": 79,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec165",
@@ -6833,7 +7392,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 157
+    "cost": 157,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec166",
@@ -6846,7 +7408,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 181
+    "cost": 181,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec167",
@@ -6859,7 +7424,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 509
+    "cost": 509,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec168",
@@ -6872,7 +7440,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 210
+    "cost": 210,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec169",
@@ -6885,7 +7456,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 100
+    "cost": 100,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec170",
@@ -6898,7 +7472,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 97
+    "cost": 97,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec171",
@@ -6911,7 +7488,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 196
+    "cost": 196,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec172",
@@ -6924,7 +7504,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 25
+    "cost": 25,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec173",
@@ -6937,7 +7520,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 64
+    "cost": 64,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec174",
@@ -6950,7 +7536,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 35
+    "cost": 35,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec175",
@@ -6963,7 +7552,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 31
+    "cost": 31,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec176",
@@ -6976,7 +7568,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 35
+    "cost": 35,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec177",
@@ -6989,7 +7584,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 70
+    "cost": 70,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec178",
@@ -7002,7 +7600,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 345
+    "cost": 345,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec179",
@@ -7015,7 +7616,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 183
+    "cost": 183,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec180",
@@ -7028,7 +7632,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 579
+    "cost": 579,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec181",
@@ -7041,7 +7648,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 218
+    "cost": 218,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec182",
@@ -7054,7 +7664,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 103
+    "cost": 103,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec183",
@@ -7067,7 +7680,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 112
+    "cost": 112,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec184",
@@ -7080,7 +7696,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 104
+    "cost": 104,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec185",
@@ -7093,7 +7712,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 108
+    "cost": 108,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec186",
@@ -7106,7 +7728,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 235
+    "cost": 235,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec187",
@@ -7119,7 +7744,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 51
+    "cost": 51,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec188",
@@ -7132,7 +7760,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 26
+    "cost": 26,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec189",
@@ -7145,7 +7776,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 83
+    "cost": 83,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec190",
@@ -7158,7 +7792,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 176
+    "cost": 176,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec191",
@@ -7171,7 +7808,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 193
+    "cost": 193,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec192",
@@ -7184,7 +7824,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 550
+    "cost": 550,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec193",
@@ -7197,7 +7840,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 240
+    "cost": 240,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec194",
@@ -7210,7 +7856,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize batch-processor-eu (n2-standard-8) to a more cost-effective instance class.",
-    "cost": 197
+    "cost": 197,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec195",
@@ -7223,7 +7872,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-eu-01 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 94
+    "cost": 94,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec196",
@@ -7236,7 +7888,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-02 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 99
+    "cost": 99,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec197",
@@ -7249,7 +7904,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 96
+    "cost": 96,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec198",
@@ -7262,7 +7920,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 103
+    "cost": 103,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec199",
@@ -7275,7 +7936,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 213
+    "cost": 213,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec200",
@@ -7288,7 +7952,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 56
+    "cost": 56,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec201",
@@ -7301,7 +7968,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 26
+    "cost": 26,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec202",
@@ -7314,7 +7984,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 28
+    "cost": 28,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec203",
@@ -7327,7 +8000,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 28
+    "cost": 28,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec204",
@@ -7340,7 +8016,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 85
+    "cost": 85,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec205",
@@ -7353,7 +8032,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 180
+    "cost": 180,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec206",
@@ -7366,7 +8048,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 183
+    "cost": 183,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec207",
@@ -7379,7 +8064,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 581
+    "cost": 581,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec208",
@@ -7392,7 +8080,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 247
+    "cost": 247,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec209",
@@ -7405,7 +8096,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize batch-processor-eu (n2-standard-8) to a more cost-effective instance class.",
-    "cost": 212
+    "cost": 212,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec210",
@@ -7418,7 +8112,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 105
+    "cost": 105,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec211",
@@ -7431,7 +8128,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 111
+    "cost": 111,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec212",
@@ -7444,7 +8144,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 114
+    "cost": 114,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec213",
@@ -7457,7 +8160,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 227
+    "cost": 227,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec214",
@@ -7470,7 +8176,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 51
+    "cost": 51,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec215",
@@ -7483,7 +8192,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 25
+    "cost": 25,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec216",
@@ -7496,7 +8208,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 86
+    "cost": 86,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec217",
@@ -7509,7 +8224,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 169
+    "cost": 169,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec218",
@@ -7522,7 +8240,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 178
+    "cost": 178,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec219",
@@ -7535,7 +8256,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 561
+    "cost": 561,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec220",
@@ -7548,7 +8272,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 235
+    "cost": 235,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec221",
@@ -7561,7 +8288,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize batch-processor-eu (n2-standard-8) to a more cost-effective instance class.",
-    "cost": 185
+    "cost": 185,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec222",
@@ -7574,7 +8304,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-eu-01 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 102
+    "cost": 102,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec223",
@@ -7587,7 +8320,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 98
+    "cost": 98,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec224",
@@ -7600,7 +8336,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 103
+    "cost": 103,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec225",
@@ -7613,7 +8352,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 105
+    "cost": 105,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec226",
@@ -7626,7 +8368,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 204
+    "cost": 204,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec227",
@@ -7639,7 +8384,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize dev-test-vm-04 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 26
+    "cost": 26,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec228",
@@ -7652,7 +8400,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 79
+    "cost": 79,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec229",
@@ -7665,7 +8416,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 35
+    "cost": 35,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec230",
@@ -7678,7 +8432,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 37
+    "cost": 37,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec231",
@@ -7691,7 +8448,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec232",
@@ -7704,7 +8464,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 93
+    "cost": 93,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec233",
@@ -7717,7 +8480,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 171
+    "cost": 171,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec234",
@@ -7730,7 +8496,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 36
+    "cost": 36,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec235",
@@ -7743,7 +8512,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 199
+    "cost": 199,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec236",
@@ -7756,7 +8528,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 565
+    "cost": 565,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec237",
@@ -7769,7 +8544,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 317
+    "cost": 317,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec238",
@@ -7782,7 +8560,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize batch-processor-eu (n2-standard-8) to a more cost-effective instance class.",
-    "cost": 273
+    "cost": 273,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec239",
@@ -7795,7 +8576,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 148
+    "cost": 148,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec240",
@@ -7808,7 +8592,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 138
+    "cost": 138,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec241",
@@ -7821,7 +8608,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 150
+    "cost": 150,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec242",
@@ -7834,7 +8624,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 288
+    "cost": 288,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec243",
@@ -7847,7 +8640,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize analytics-node-01 (Standard_D8s_v5) to a more cost-effective instance class.",
-    "cost": 61
+    "cost": 61,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec244",
@@ -7860,7 +8656,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-api-worker-01 (Standard_F4s_v2) to a more cost-effective instance class.",
-    "cost": 31
+    "cost": 31,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec245",
@@ -7873,7 +8672,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-07 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 31
+    "cost": 31,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec246",
@@ -7886,7 +8688,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize vm-web-08 (Standard_D4s_v5) to a more cost-effective instance class.",
-    "cost": 30
+    "cost": 30,
+    "service": "Virtual Machines",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec247",
@@ -7899,7 +8704,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize reporting-db-read (GP_Gen5_8) to a more cost-effective instance class.",
-    "cost": 91
+    "cost": 91,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec248",
@@ -7912,7 +8720,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-retail-orders-prod (GP_Gen5_16) to a more cost-effective instance class.",
-    "cost": 174
+    "cost": 174,
+    "service": "Azure SQL Database",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec249",
@@ -7925,7 +8736,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize aks-retail-staging (Standard_D2s_v5) to a more cost-effective instance class.",
-    "cost": 30
+    "cost": 30,
+    "service": "Azure Kubernetes (AKS)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec250",
@@ -7938,7 +8752,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize sql-catalog-replica (Standard) to a more cost-effective instance class.",
-    "cost": 186
+    "cost": 186,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec251",
@@ -7951,7 +8768,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize sql-orders-prod (Standard) to a more cost-effective instance class.",
-    "cost": 567
+    "cost": 567,
+    "service": "Cloud SQL",
+    "category": "Databases",
+    "resource_type": "database"
   },
   {
     "id": "rec252",
@@ -7964,7 +8784,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gke-retail-staging (e2-standard-4) to a more cost-effective instance class.",
-    "cost": 284
+    "cost": 284,
+    "service": "Google Kubernetes Engine (GKE)",
+    "category": "Containers & Kubernetes",
+    "resource_type": "kubernetes_cluster"
   },
   {
     "id": "rec253",
@@ -7977,7 +8800,10 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize batch-processor-eu (n2-standard-8) to a more cost-effective instance class.",
-    "cost": 228
+    "cost": 228,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec254",
@@ -7990,7 +8816,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-api-worker-01 (c2-standard-4) to a more cost-effective instance class.",
-    "cost": 122
+    "cost": 122,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec255",
@@ -8003,7 +8832,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-07 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 124
+    "cost": 124,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec256",
@@ -8016,7 +8848,10 @@ export const recommendations: Recommendation[] = [
     "priority": "Medium",
     "confidence": 86,
     "action": "Downsize gce-web-fe-08 (n2-standard-4) to a more cost-effective instance class.",
-    "cost": 124
+    "cost": 124,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   },
   {
     "id": "rec257",
@@ -8029,6 +8864,9 @@ export const recommendations: Recommendation[] = [
     "priority": "High",
     "confidence": 94,
     "action": "Downsize gce-analytics-01 (n2-highmem-8) to a more cost-effective instance class.",
-    "cost": 247
+    "cost": 247,
+    "service": "Compute Engine",
+    "category": "Compute",
+    "resource_type": "compute_instance"
   }
 ];

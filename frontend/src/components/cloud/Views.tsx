@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendChart, DistributionChart, Sparkline, UtilizationChart } from './Charts';
 import { ProviderBadge, SectionHeading, useCloudApp, useDataset } from './AppShell';
-import { money, type Cloud as CloudType, type Finding, type Recommendation, type Period, type Resource } from '@/mockData/cloud';
+import { money, getCategoryForRecommendation, getServiceForRecommendation, type Cloud as CloudType, type Finding, type Recommendation, type Period, type Resource } from '@/mockData/cloud';
 import { cn } from '@/lib/utils';
 import { ConnectionsPanel } from './Connections';
 import { ApprovalDrawer, StatusPill } from './Approvals';
@@ -646,13 +646,11 @@ export function RecommendationsView() {
               <ProviderBadge provider={r.provider}/>
               <span className="truncate max-w-[180px] font-medium">{r.resource}</span>
               <div className="ml-auto flex items-center gap-1.5 shrink-0">
-                {r.service && (
-                  <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
-                    {r.service} ·
-                  </span>
-                )}
+                <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
+                  {getServiceForRecommendation(r)} ·
+                </span>
                 <span className="text-[10px] bg-secondary/90 text-foreground px-1.5 py-0.5 rounded border border-border font-semibold">
-                  {r.category || 'Compute'}
+                  {getCategoryForRecommendation(r)}
                 </span>
               </div>
             </div>
@@ -689,7 +687,7 @@ export function RecommendationsView() {
           <div className="drawer-kicker">RULE ENGINE FINDING</div>
           <SheetTitle>{selected?.title}</SheetTitle>
           <SheetDescription>
-            {selected?.resource} · <span className="text-foreground font-medium">{selected?.service || selected?.category || 'Compute'}</span> · {selected?.provider}
+            {selected?.resource} · <span className="text-foreground font-medium">{selected ? `${getServiceForRecommendation(selected)} (${getCategoryForRecommendation(selected)})` : 'Service'}</span> · {selected?.provider}
           </SheetDescription>
         </SheetHeader>
         {selected&&<div className="drawer-body space-y-4">
@@ -697,7 +695,7 @@ export function RecommendationsView() {
             <span className={cn('priority-pill',`priority-${selected.priority.toLowerCase()}`)}>{selected.priority} priority</span>
             <span className="status-pill status-muted">{selected.confidence}% confidence</span>
             <span className="text-[11px] bg-secondary text-foreground px-2 py-0.5 rounded border border-border font-medium">
-              {selected.category || selected.service || 'Compute'}
+              {getCategoryForRecommendation(selected)}
             </span>
           </div>
           <div className="drawer-metrics">
@@ -1260,16 +1258,12 @@ export function AiRecommendationsView() {
                         {item.resource_name || item.resource_id}
                       </h3>
                       <span className="text-[10px] bg-secondary/90 text-foreground px-2 py-0.5 rounded border border-border shrink-0 font-semibold">
-                        {item.category || (item.resource_type ? (item.resource_type.includes('db') || item.resource_type.includes('sql') ? 'Databases' : item.resource_type.includes('disk') || item.resource_type.includes('storage') ? 'Storage' : 'Compute') : 'Compute')}
+                        {getCategoryForRecommendation(item)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
-                      {item.service && (
-                        <>
-                          <span className="font-semibold text-foreground/80 shrink-0">{item.service}</span>
-                          <span className="shrink-0 text-muted-foreground/60">·</span>
-                        </>
-                      )}
+                      <span className="font-semibold text-foreground/80 shrink-0">{getServiceForRecommendation(item)}</span>
+                      <span className="shrink-0 text-muted-foreground/60">·</span>
                       <span className="font-mono truncate">{item.resource_id}</span>
                     </div>
                   </div>
