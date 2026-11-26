@@ -309,7 +309,7 @@ export function AiRecommendationModal({
                       <span className="text-xs text-muted-foreground">/mo</span>
                     </div>
                     <span className="text-[11px] font-semibold text-emerald-500/90 flex items-center gap-1 mt-0.5">
-                      <TrendingDown size={12} /> {savingsPct}% monthly cost cut
+                      <TrendingDown size={12} /> {savingsPct}% of {money(currentCost)}/mo spend
                     </span>
                   </div>
                 </div>

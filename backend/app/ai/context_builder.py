@@ -18,20 +18,7 @@ class ContextBuilder:
         self.db = db
     
     async def build_context(self, resource_id: str, finding_id: str = None) -> Tuple[str, Dict[str, Any]]:
-        # 1. Fetch Resource from MongoDB (supports resource_id, id, or name)
-        resource = await self.db.resources.find_one({"resource_id": resource_id})
-        if not resource:
-            resource = await self.db.resources.find_one({"id": resource_id})
-        if not resource:
-            resource = await self.db.resources.find_one({"name": resource_id})
-        if not resource:
-            # Fallback search matching trailing resource identifier segment
-            short_id = resource_id.split("/")[-1].split(":")[-1]
-            resource = await self.db.resources.find_one({"name": short_id})
-        if not resource:
-            raise ValueError(f"Resource '{resource_id}' not found in MongoDB.")
-
-        # 2. Fetch Finding from MongoDB (if exists)
+        # 1. Fetch Finding from MongoDB FIRST (if exists) so we match dataset_id & exact cost snapshot
         finding = None
         if finding_id:
             try:
@@ -40,7 +27,29 @@ class ContextBuilder:
             except Exception:
                 finding = await self.db.findings.find_one({"id": finding_id})
         if not finding:
-            finding = await self.db.findings.find_one({"resource_id": resource_id})
+            finding = await self.db.findings.find_one(
+                {"resource_id": resource_id},
+                sort=[("updated_at", -1), ("created_at", -1)]
+            )
+
+        # 2. Fetch latest Resource snapshot from MongoDB matching dataset_id if available
+        res_filter: Dict[str, Any] = {"resource_id": resource_id}
+        if finding and finding.get("dataset_id"):
+            res_filter["dataset_id"] = finding["dataset_id"]
+
+        resource = await self.db.resources.find_one(res_filter, sort=[("last_synced_at", -1)])
+        if not resource:
+            resource = await self.db.resources.find_one({"resource_id": resource_id}, sort=[("last_synced_at", -1)])
+        if not resource:
+            resource = await self.db.resources.find_one({"id": resource_id}, sort=[("last_synced_at", -1)])
+        if not resource:
+            resource = await self.db.resources.find_one({"name": resource_id}, sort=[("last_synced_at", -1)])
+        if not resource:
+            # Fallback search matching trailing resource identifier segment
+            short_id = resource_id.split("/")[-1].split(":")[-1]
+            resource = await self.db.resources.find_one({"name": short_id}, sort=[("last_synced_at", -1)])
+        if not resource:
+            raise ValueError(f"Resource '{resource_id}' not found in MongoDB.")
 
         # Safe defaults if no prior finding existed
         if not finding:
@@ -52,9 +61,11 @@ class ContextBuilder:
                 "savings": {"monthly": 0.0}
             }
 
-        # 3. Extract and normalize fields
+        # 3. Extract and normalize fields (prefer finding's cost/metrics snapshot if present for consistency)
         config = resource.get("configuration", {})
-        metrics = resource.get("metrics", {})
+        res_metrics = resource.get("metrics", {})
+        finding_metrics = finding.get("metrics", {})
+        metrics = {**res_metrics, **{k: v for k, v in finding_metrics.items() if v is not None}}
         cost = resource.get("cost", {})
         tags = resource.get("tags", {})
         provider = resource.get("provider", "aws").upper()
@@ -67,7 +78,9 @@ class ContextBuilder:
             config.get("storage_type") or 
             "standard"
         )
-        monthly_cost = float(cost.get("monthly", 0.0))
+        finding_cost = float(finding.get("cost", {}).get("monthly", 0.0) or 0.0)
+        resource_cost = float(cost.get("monthly", 0.0) or 0.0)
+        monthly_cost = finding_cost if finding_cost > 0.0 else resource_cost
         baseline_savings = float(finding.get("savings", {}).get("monthly", finding.get("estimated_savings", 0.0)))
         rule_id = finding.get("rule_id", "UNKNOWN")
 
