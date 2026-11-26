@@ -104,12 +104,16 @@ async def get_dashboard_summary(
     open_findings = await db.findings.count_documents({**find_match, "status": "open"})
     high_severity = await db.findings.count_documents({**find_match, "severity": "high", "status": "open"})
 
-    # 1. Aggregate Savings by Provider
+    # 1. Aggregate Savings by Provider (deduplicated per resource_id via $max to prevent double-counting)
     savings_pipeline = [
         {"$match": {**find_match, "status": "open"}},
         {"$group": {
-            "_id": "$provider",
-            "provider_monthly": {"$sum": "$savings.monthly"}
+            "_id": {"provider": "$provider", "resource_id": "$resource_id"},
+            "max_resource_savings": {"$max": "$savings.monthly"}
+        }},
+        {"$group": {
+            "_id": "$_id.provider",
+            "provider_monthly": {"$sum": "$max_resource_savings"}
         }}
     ]
 

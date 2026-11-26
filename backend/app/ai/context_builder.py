@@ -29,8 +29,23 @@ class ContextBuilder:
         if not finding:
             finding = await self.db.findings.find_one(
                 {"resource_id": resource_id},
-                sort=[("updated_at", -1), ("created_at", -1)]
+                sort=[("savings.monthly", -1), ("updated_at", -1)]
             )
+
+        # Collect ALL violated rules for this resource in the active dataset
+        all_findings_query: Dict[str, Any] = {"resource_id": resource_id}
+        if finding and finding.get("dataset_id"):
+            all_findings_query["dataset_id"] = finding["dataset_id"]
+        all_findings = await self.db.findings.find(all_findings_query).sort("savings.monthly", -1).to_list(length=20)
+        triggered_rules = [
+            {
+                "rule_id": af.get("rule_id", ""),
+                "rule_name": af.get("evidence", {}).get("rule_name") or af.get("rule_id", ""),
+                "severity": str(af.get("severity", "medium")).capitalize(),
+                "savings": round(float(af.get("savings", {}).get("monthly", 0.0) or 0.0), 2),
+            }
+            for af in all_findings if af.get("rule_id")
+        ]
 
         # 2. Fetch latest Resource snapshot from MongoDB matching dataset_id if available
         res_filter: Dict[str, Any] = {"resource_id": resource_id}
@@ -94,6 +109,7 @@ class ContextBuilder:
             "monthly_cost": monthly_cost,
             "baseline_savings": baseline_savings,
             "rule_id": rule_id,
+            "triggered_rules": triggered_rules,
             "finding_title": finding.get("finding_type", "Cost Optimization Review"),
             "evidence": str(finding.get("evidence", {})),
             "tags": str(tags),

@@ -60,6 +60,7 @@ class RecommendationValidator:
             "service": sname,
             "category": cat_name,
             "dataset_id": context.get("dataset_id"),
+            "triggered_rules": context.get("triggered_rules", []),
             "action": action,
             "target_sku": raw.get("target_sku"),
             "current_sku": context.get("current_sku"),

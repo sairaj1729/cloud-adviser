@@ -270,7 +270,7 @@ class AnalyticsService:
         except Exception as e:
             logger.warning(f"Could not pre-fetch ai_recommendations: {e}")
 
-        recommendations = []
+        recommendations_by_res: Dict[str, Dict[str, Any]] = {}
         underutilized = []
         unused_services = []
 
@@ -300,26 +300,55 @@ class AnalyticsService:
             sname = get_service_name(rtype, prov)
             cat_name = get_category_name(rtype)
 
-            # Format Recommendation
-            recommendations.append({
-                "id": fid,
-                "title": f"{rule_name} ({rname})",
-                "provider": prov,
-                "resource": rname,
-                "resource_id": res_id_val,
-                "resource_type": rtype,
-                "service": sname,
-                "category": cat_name,
+            rule_entry = {
+                "finding_id": fid,
+                "rule_id": rule_id,
+                "rule_name": rule_name,
+                "severity": priority,
+                "savings": round(savings_m, 2),
                 "problem": explanation,
                 "evidence": evidence_summary,
-                "savings": round(savings_m, 2),
-                "priority": priority,
-                "confidence": 94 if priority == "High" else 86,
                 "action": action,
-                "cost": round(cost_m, 2),
-                "status": status,
-                "ai_recommendation": ai_data
-            })
+            }
+
+            # Consolidate findings per resource_id so savings are never double-counted
+            if res_id_val not in recommendations_by_res:
+                recommendations_by_res[res_id_val] = {
+                    "id": fid,
+                    "title": f"{rule_name} ({rname})",
+                    "provider": prov,
+                    "resource": rname,
+                    "resource_id": res_id_val,
+                    "resource_type": rtype,
+                    "service": sname,
+                    "category": cat_name,
+                    "problem": explanation,
+                    "evidence": evidence_summary,
+                    "savings": round(savings_m, 2),
+                    "priority": priority,
+                    "confidence": 94 if priority == "High" else 86,
+                    "action": action,
+                    "cost": round(cost_m, 2),
+                    "status": status,
+                    "ai_recommendation": ai_data,
+                    "triggered_rules": [rule_entry],
+                }
+            else:
+                existing = recommendations_by_res[res_id_val]
+                existing["triggered_rules"].append(rule_entry)
+                # Keep the highest-savings (or higher-priority) finding as the primary headline
+                if round(savings_m, 2) > existing["savings"]:
+                    existing["id"] = fid
+                    existing["title"] = f"{rule_name} ({rname})"
+                    existing["problem"] = explanation
+                    existing["evidence"] = evidence_summary
+                    existing["savings"] = round(savings_m, 2)
+                    existing["priority"] = priority
+                    existing["confidence"] = 94 if priority == "High" else 86
+                    existing["action"] = action
+                    existing["cost"] = max(existing["cost"], round(cost_m, 2))
+                    if ai_data and not existing.get("ai_recommendation"):
+                        existing["ai_recommendation"] = ai_data
 
             if rec_type in ["CLEANUP_REVIEW", "STOP_REVIEW"] or "EBS" in rule_id or "DISK" in rule_id or "002" in rule_id:
                 unused_services.append({
@@ -363,6 +392,12 @@ class AnalyticsService:
                     "recommendation": action,
                     "instanceType": sku
                 })
+
+        recommendations = sorted(
+            recommendations_by_res.values(),
+            key=lambda x: x["savings"],
+            reverse=True
+        )
 
         # 4. Format Services by Provider
         services_formatted = {}

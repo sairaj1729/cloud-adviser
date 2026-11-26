@@ -4688,6 +4688,16 @@ export type Recommendation = {
   cost: number;
   status?: string;
   ai_recommendation?: any;
+  triggered_rules?: Array<{
+    finding_id?: string;
+    rule_id: string;
+    rule_name: string;
+    severity: string;
+    savings: number;
+    problem?: string;
+    evidence?: string;
+    action?: string;
+  }>;
 };
 
 export function getCategoryForRecommendation(r?: {

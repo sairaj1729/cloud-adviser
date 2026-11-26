@@ -635,7 +635,15 @@ export function RecommendationsView() {
           <article className="surface recommendation-card" key={r.id}>
             <div className="rec-card-top">
               <div className="rec-icon"><Lightbulb size={19}/></div>
-              <span className="flex gap-1.5 items-center">
+              <span className="flex gap-1.5 items-center flex-wrap justify-end">
+                {r.triggered_rules && r.triggered_rules.length > 1 && (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    title={r.triggered_rules.map(tr => `${tr.rule_name} (${money(tr.savings)}/mo)`).join(' · ')}
+                  >
+                    {r.triggered_rules.length} rules
+                  </span>
+                )}
                 <StatusPill status={statusOf(r.id)}/>
                 <span className={cn('priority-pill',`priority-${r.priority.toLowerCase()}`)}>{r.priority} priority</span>
               </span>
@@ -725,6 +733,29 @@ export function RecommendationsView() {
             <h3>Suggested action</h3>
             <p className="text-xs text-muted-foreground leading-relaxed mt-1">{selected.action}</p>
           </div>
+
+          {selected.triggered_rules && selected.triggered_rules.length > 1 && (
+            <div className="drawer-section">
+              <h3>All Violated Policies ({selected.triggered_rules.length})</h3>
+              <p className="text-[11px] text-muted-foreground mt-1 mb-2">
+                This resource matched multiple rules. Net savings ({money(selected.savings)}/mo) uses the highest-impact policy to avoid double-counting.
+              </p>
+              <div className="space-y-2">
+                {selected.triggered_rules.map((tr, idx) => (
+                  <div key={tr.finding_id || `${tr.rule_id}-${idx}`} className="p-2.5 rounded-lg bg-secondary/40 border border-border/70 text-xs space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="text-foreground font-semibold">{tr.rule_name}</strong>
+                      <span className="font-mono text-[11px] text-emerald-400 font-semibold shrink-0">{money(tr.savings)}/mo</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span className="font-mono">{tr.rule_id}</span>
+                      <span>{tr.severity} priority</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* AI Advisor Section inside Drawer */}
           <div className="drawer-section border-t border-border pt-4">
